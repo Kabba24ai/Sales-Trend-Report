@@ -126,6 +126,9 @@ export default function SalesTrendReport() {
   const growthRate = previousTotal > 0 ? ((currentTotal - previousTotal) / previousTotal) * 100 : 0;
   const currentAverage = currentTotal / (currentPeriodData.length || 1);
 
+  const top10Total = topProducts.reduce((sum, p) => sum + p.total_sales, 0);
+  const top10Percentage = currentTotal > 0 ? (top10Total / currentTotal) * 100 : 0;
+
   const comparisonChartData = currentPeriodData.map((current, index) => {
     const previous = previousPeriodData[index];
     return {
@@ -493,42 +496,67 @@ export default function SalesTrendReport() {
           </div>
         </div>
 
-        <div className="flex gap-4 mb-8 max-w-3xl mx-auto">
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-4 text-center flex-1">
-            <div className="text-xs font-medium text-slate-600 mb-2">Total Sales</div>
-            <div className="text-2xl font-bold text-blue-600">
-              {loading ? '...' : formatCurrency(currentTotal)}
+        {!showTopProducts ? (
+          <div className="flex gap-4 mb-8 max-w-3xl mx-auto">
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">Total Sales</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {loading ? '...' : formatCurrency(currentTotal)}
+              </div>
             </div>
-          </div>
 
-          <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-4 text-center flex-1">
-            <div className="text-xs font-medium text-slate-600 mb-2">Previous Period</div>
-            <div className="text-2xl font-bold text-green-600">
-              {loading ? '...' : formatCurrency(previousTotal)}
+            <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">Previous Period</div>
+              <div className="text-2xl font-bold text-green-600">
+                {loading ? '...' : formatCurrency(previousTotal)}
+              </div>
             </div>
-          </div>
 
-          <div className="bg-teal-50 border border-teal-100 rounded-2xl px-4 py-4 text-center flex-1">
-            <div className="text-xs font-medium text-slate-600 mb-2">Growth Rate</div>
-            <div className={`text-2xl font-bold flex items-center justify-center gap-2 ${
-              growthRate >= 0 ? 'text-teal-600' : 'text-red-600'
-            }`}>
-              {growthRate >= 0 ? (
-                <TrendingUp size={20} />
-              ) : (
-                <TrendingDown size={20} />
-              )}
-              {loading ? '...' : `${growthRate.toFixed(1)}%`}
+            <div className="bg-teal-50 border border-teal-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">Growth Rate</div>
+              <div className={`text-2xl font-bold flex items-center justify-center gap-2 ${
+                growthRate >= 0 ? 'text-teal-600' : 'text-red-600'
+              }`}>
+                {growthRate >= 0 ? (
+                  <TrendingUp size={20} />
+                ) : (
+                  <TrendingDown size={20} />
+                )}
+                {loading ? '...' : `${growthRate.toFixed(1)}%`}
+              </div>
             </div>
-          </div>
 
-          <div className="bg-purple-50 border border-purple-100 rounded-2xl px-4 py-4 text-center flex-1">
-            <div className="text-xs font-medium text-slate-600 mb-2">Daily Average</div>
-            <div className="text-2xl font-bold text-purple-600">
-              {loading ? '...' : formatCurrency(currentAverage)}
+            <div className="bg-purple-50 border border-purple-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">Daily Average</div>
+              <div className="text-2xl font-bold text-purple-600">
+                {loading ? '...' : formatCurrency(currentAverage)}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex gap-4 mb-8 max-w-3xl mx-auto">
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">Total Sales</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {loading ? '...' : formatCurrency(currentTotal)}
+              </div>
+            </div>
+
+            <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">Top 10 Sales</div>
+              <div className="text-2xl font-bold text-green-600">
+                {loading ? '...' : formatCurrency(top10Total)}
+              </div>
+            </div>
+
+            <div className="bg-teal-50 border border-teal-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">% Total Sales</div>
+              <div className="text-2xl font-bold text-teal-600">
+                {loading ? '...' : `${top10Percentage.toFixed(1)}%`}
+              </div>
+            </div>
+          </div>
+        )}
 
         {!showTopProducts ? (
           <div>
