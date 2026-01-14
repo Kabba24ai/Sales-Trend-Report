@@ -1,105 +1,226 @@
-# Sales Trend Analysis Dashboard - Implementation Guide
+# Sales Trend Analysis Dashboard - Technical Documentation
 
 ## Overview
 
-This React-based dashboard provides comprehensive sales trend analysis with period-over-period comparisons. It's designed to integrate with a Laravel backend via REST API endpoints.
+This is a full-stack React-based sales analytics dashboard with comprehensive period-over-period comparisons, store filtering, and advanced revenue analysis. The application uses Supabase as the backend database and authentication provider.
 
 ## Table of Contents
 
 1. [Architecture](#architecture)
-2. [Database Schema](#database-schema)
-3. [Business Rules](#business-rules)
-4. [API Endpoints](#api-endpoints)
-5. [Laravel Implementation](#laravel-implementation)
-6. [Frontend Integration](#frontend-integration)
-7. [Testing Guidelines](#testing-guidelines)
+2. [Environment Setup](#environment-setup)
+3. [Database Schema](#database-schema)
+4. [Business Rules](#business-rules)
+5. [API Functions](#api-functions)
+6. [Store Configuration](#store-configuration)
+7. [Filter System](#filter-system)
+8. [Frontend Implementation](#frontend-implementation)
+9. [Testing Guidelines](#testing-guidelines)
 
 ---
 
 ## Architecture
 
 ### Tech Stack
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS
-- **Backend**: Laravel (API)
+- **Frontend**: React 18 + TypeScript + Vite
+- **Styling**: Tailwind CSS 3
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth (ready for future implementation)
 - **Charts**: Recharts
 - **Icons**: Lucide React
 
 ### Data Flow
 ```
-React Frontend → Laravel API Endpoints → MySQL Database → Response Data → Chart Visualization
+React Frontend → Supabase Client Library → PostgreSQL Database → Real-time Updates → Chart Visualization
+```
+
+### Key Features
+- Rolling 30-day sales comparison
+- 7-day sales comparison (labeled as "Current Month")
+- Last complete month comparison
+- Top 10 products analysis
+- Top 5 categories analysis
+- Multi-store filtering (Bon Aqua, Waverly)
+- Advanced filter combinations
+- Real-time data updates
+- Responsive design
+
+---
+
+## Environment Setup
+
+### Prerequisites
+- Node.js 18+ and npm
+- Supabase account (database already provisioned)
+- Git
+
+### Installation Steps
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd <project-directory>
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Environment Variables**
+
+The project uses Supabase for database operations. Environment variables are stored in `.env`:
+
+```env
+VITE_SUPABASE_URL=<your-supabase-project-url>
+VITE_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+```
+
+**Important**: These values are already configured in the project. DO NOT modify unless switching to a different Supabase instance.
+
+4. **Start Development Server**
+```bash
+npm run dev
+```
+
+5. **Build for Production**
+```bash
+npm run build
 ```
 
 ---
 
 ## Database Schema
 
-### Required Tables
+### Database: Supabase PostgreSQL
 
-#### 1. `orders` Table
+The application uses Supabase (PostgreSQL) with Row Level Security (RLS) enabled on all tables. Three migrations have been applied:
+
+1. `20260114112157_create_sales_reporting_schema.sql` - Initial schema
+2. `20260114131651_add_sales_tax_column.sql` - Added sales tax tracking
+3. `20260114160615_add_stores_table.sql` - Added multi-store support
+
+### Tables Overview
+
+#### 1. `stores` Table
+Stores information for multi-location filtering.
+
 ```sql
-CREATE TABLE orders (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    order_number VARCHAR(255) NOT NULL UNIQUE,
-    customer_id BIGINT UNSIGNED,
-    payment_status ENUM('PENDING', 'PAID', 'REFUNDED', 'FAILED') NOT NULL,
-    payment_date DATETIME NULL,
-    sales_tax DECIMAL(10, 2) DEFAULT 0.00,
-    created_at TIMESTAMP NULL,
-    updated_at TIMESTAMP NULL,
-    INDEX idx_payment_status (payment_status),
-    INDEX idx_payment_date (payment_date),
-    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+CREATE TABLE stores (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  created_at timestamptz DEFAULT now()
 );
 ```
 
-#### 2. `order_items` Table
-```sql
-CREATE TABLE order_items (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    order_id BIGINT UNSIGNED NOT NULL,
-    item_type ENUM('rental', 'retail', 'damage_waiver', 'thrown_track_insurance', 'delivery') NOT NULL,
-    category_id BIGINT UNSIGNED NULL,
-    product_id BIGINT UNSIGNED NULL,
-    product_name VARCHAR(255),
-    subtotal DECIMAL(10, 2) NOT NULL,
-    shipping_cost DECIMAL(10, 2) DEFAULT 0.00,
-    processing_fees DECIMAL(10, 2) DEFAULT 0.00,
-    quantity INT DEFAULT 1,
-    created_at TIMESTAMP NULL,
-    updated_at TIMESTAMP NULL,
-    INDEX idx_order_id (order_id),
-    INDEX idx_item_type (item_type),
-    INDEX idx_category_id (category_id),
-    INDEX idx_product_id (product_id),
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
-);
-```
+**Default Stores:**
+- Bon Aqua
+- Waverly
 
-#### 3. `categories` Table
+**RLS Policy:** Anyone can read stores (public reference data)
+
+#### 2. `categories` Table
+Product categories for organizing inventory.
+
 ```sql
 CREATE TABLE categories (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    slug VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMP NULL,
-    updated_at TIMESTAMP NULL
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  created_at timestamptz DEFAULT now()
 );
 ```
 
-#### 4. `products` Table
+**RLS Policy:** Anyone can read categories
+
+#### 3. `products` Table
+Product catalog with category relationships.
+
 ```sql
 CREATE TABLE products (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    category_id BIGINT UNSIGNED NULL,
-    name VARCHAR(255) NOT NULL,
-    sku VARCHAR(255) NOT NULL UNIQUE,
-    created_at TIMESTAMP NULL,
-    updated_at TIMESTAMP NULL,
-    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id uuid REFERENCES categories(id),
+  name text NOT NULL,
+  price numeric DEFAULT 0,
+  created_at timestamptz DEFAULT now()
 );
 ```
+
+**RLS Policy:** Anyone can read products
+
+#### 4. `orders` Table
+Order header information including payment status and store location.
+
+```sql
+CREATE TABLE orders (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number text UNIQUE NOT NULL,
+  customer_name text NOT NULL,
+  payment_status text DEFAULT 'PENDING',
+  payment_method text,
+  payment_date timestamptz,
+  sales_tax numeric DEFAULT 0,
+  store_id uuid REFERENCES stores(id),
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Key Fields:**
+- `payment_status`: PENDING, PAID, REFUNDED, FAILED
+- `payment_date`: Must be NOT NULL for sales calculations
+- `sales_tax`: Excluded from all revenue calculations
+- `store_id`: Links order to specific store location
+
+**RLS Policy:** Anyone can read orders
+
+#### 5. `order_items` Table
+Line items for each order with detailed revenue breakdown.
+
+```sql
+CREATE TABLE order_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id uuid REFERENCES orders(id) NOT NULL,
+  product_id uuid REFERENCES products(id),
+  category_id uuid REFERENCES categories(id),
+  item_type text DEFAULT 'product',
+  quantity integer DEFAULT 1,
+  subtotal numeric DEFAULT 0,
+  shipping_cost numeric DEFAULT 0,
+  processing_fees numeric DEFAULT 0,
+  sales_tax numeric DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Item Types:**
+- `rental`: Rental items
+- `retail`: Retail/purchase items
+- `damage_waiver`: Damage protection fees
+- `thrown_track_insurance`: Insurance products
+- `delivery`: Delivery/shipping fees
+
+**Revenue Formula:**
+```
+revenue = subtotal + shipping_cost + processing_fees
+(sales_tax is ALWAYS excluded)
+```
+
+**RLS Policy:** Anyone can read order items
+
+### Database Connection
+
+The application connects to Supabase using the `@supabase/supabase-js` client library:
+
+**File:** `src/lib/supabase.ts`
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+```
+
+### Migrations Location
+All database migrations are stored in: `supabase/migrations/`
 
 ---
 
@@ -130,12 +251,16 @@ Revenue Per Order Item = subtotal + shipping_cost + processing_fees
 
 #### Rule #4: Filter Logic
 
+**Store Filter**:
+- `all`: Include all stores (default)
+- `<store_id>`: Filter by specific store (Bon Aqua or Waverly)
+
 **Item Type Filters** (Mutually Exclusive):
-- `all`: Include all item types
+- `all`: Include all item types (default)
 - `rental`: Only items where `item_type = 'rental'`
 - `retail`: Only items where `item_type = 'retail'`
 
-**Special Type Filters** (Can be combined):
+**Special Type Filters** (Can be combined with exclude filters):
 - `excludeWaiver`: Exclude items where `item_type = 'damage_waiver'`
 - `waiverOnly`: ONLY items where `item_type = 'damage_waiver'`
 - `excludeInsurance`: Exclude items where `item_type = 'thrown_track_insurance'`
@@ -146,7 +271,132 @@ Revenue Per Order Item = subtotal + shipping_cost + processing_fees
 
 **Category & Product Filters**:
 - `category`: Filter by `category_id` (if not 'all')
-- `product`: Filter by `product_id` (if not 'all')
+- `product`: Filter by `product_id` (if not 'all', requires category selection first)
+
+**Filter Combination Rules:**
+- Exclude filters can be combined together (e.g., exclude waiver + exclude insurance)
+- "Only" filters can be combined together (e.g., waiver only + insurance only)
+- Exclude and "Only" filters CANNOT be mixed
+- The UI automatically enforces these rules with visual feedback
+
+---
+
+## Store Configuration
+
+### Multi-Store Setup
+
+The application supports multiple store locations for sales tracking and analysis.
+
+**Current Stores:**
+1. **Bon Aqua** - Store location 1
+2. **Waverly** - Store location 2
+
+### Adding New Stores
+
+To add a new store location:
+
+1. **Via Supabase Dashboard:**
+   - Navigate to your Supabase project
+   - Go to Table Editor → `stores`
+   - Insert new row with store name
+
+2. **Via SQL Migration:**
+```sql
+INSERT INTO stores (name) VALUES ('New Store Name');
+```
+
+3. **Via API (future):**
+   - Will require admin authentication
+   - POST to store management endpoint
+
+### Store Assignment
+
+Orders are assigned to stores via the `store_id` field in the `orders` table. This allows:
+- Store-specific sales reporting
+- Multi-store comparison analysis
+- Location-based performance tracking
+
+---
+
+## Filter System
+
+### Filter UI Layout
+
+The filter row is organized as follows:
+
+```
+Row 1: [Store] | [Item Type] | [Category] | [Product] | [Show Top 10 Products] | [Show Top 5 Categories]
+Row 2: Checkboxes for exclude/only filters
+```
+
+### Filter State Interface
+
+**File:** `src/services/salesApi.ts`
+
+```typescript
+export interface SalesFilters {
+  store?: string;
+  itemType?: 'all' | 'rental' | 'retail';
+  category?: string;
+  product?: string;
+  excludeWaiver?: boolean;
+  waiverOnly?: boolean;
+  excludeInsurance?: boolean;
+  insuranceOnly?: boolean;
+  excludeShipping?: boolean;
+  excludeDelivery?: boolean;
+  deliveryOnly?: boolean;
+}
+```
+
+### Filter Behavior
+
+1. **Store Filter**
+   - Dropdown selection
+   - Default: "All Stores"
+   - Options: All Stores, Bon Aqua, Waverly
+   - Applies to all report types
+
+2. **Item Type Filter**
+   - Dropdown selection
+   - Default: "All Items"
+   - Options: All Items, Rental Only, Retail Only
+   - When "Retail Only" is selected: rental-specific filters are hidden
+
+3. **Category Filter**
+   - Dropdown selection populated from database
+   - Default: "All Categories"
+   - Dynamically loads available categories
+
+4. **Product Filter**
+   - Dropdown selection
+   - Disabled until category is selected
+   - Automatically populates based on selected category
+   - Resets to "All Products" when category changes
+
+5. **Checkbox Filters**
+   - Visual feedback: compatible filters shown in bold, incompatible grayed out
+   - Mutually exclusive pairs auto-deselect opposite option
+   - Rental-specific filters hidden when "Retail Only" is selected
+
+### Clear Filters Button
+
+Resets all filters to default state:
+```typescript
+{
+  store: 'all',
+  itemType: 'all',
+  category: 'all',
+  product: 'all',
+  excludeWaiver: false,
+  waiverOnly: false,
+  excludeInsurance: false,
+  insuranceOnly: false,
+  excludeShipping: false,
+  excludeDelivery: false,
+  deliveryOnly: false
+}
+```
 
 ---
 
@@ -180,873 +430,458 @@ Revenue Per Order Item = subtotal + shipping_cost + processing_fees
 
 ---
 
-## API Endpoints
+## API Functions
 
-### Base URL
-```
-https://yourdomain.com/api/sales
-```
+### Location
+All API functions are in `src/services/salesApi.ts`
 
-### Authentication
-All endpoints should require Laravel Sanctum or Passport authentication:
-```
-Authorization: Bearer {token}
-```
-
-### 1. Rolling 30 Days Report
-```
-GET /api/sales/rolling-30-days
-```
-
-**Query Parameters:**
-```
-itemType: string (optional) - 'all' | 'rental' | 'retail'
-category: number (optional) - category_id
-product: number (optional) - product_id
-excludeWaiver: boolean (optional)
-waiverOnly: boolean (optional)
-excludeInsurance: boolean (optional)
-insuranceOnly: boolean (optional)
-excludeShipping: boolean (optional)
-excludeDelivery: boolean (optional)
-deliveryOnly: boolean (optional)
-```
-
-**Response Format:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "date": "2024-01-15",
-      "sales": 1250.50,
-      "period": "current"
-    },
-    {
-      "date": "2024-01-14",
-      "sales": 980.25,
-      "period": "current"
-    },
-    {
-      "date": "2023-12-15",
-      "sales": 1100.00,
-      "period": "previous"
-    }
-  ]
-}
-```
-
-### 2. 7-Day Comparison Report
-```
-GET /api/sales/7-day-comparison
-```
-
-**Query Parameters:** Same as Rolling 30 Days
-
-**Response Format:** Same structure as Rolling 30 Days
-
-### 3. Last Month Report
-```
-GET /api/sales/last-month-comparison
-```
-
-**Query Parameters:** Same as Rolling 30 Days
-
-**Response Format:** Same structure as Rolling 30 Days
-
-### 4. Top Products Report
-```
-GET /api/sales/top-products
-```
-
-**Query Parameters:**
-```
-limit: number (optional, default: 10) - Number of top products to return
-```
-
-**Response Format:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "productName": "Premium Rental Package",
-      "totalSales": 25000.00,
-      "orderCount": 45
-    },
-    {
-      "productName": "Damage Waiver",
-      "totalSales": 18500.00,
-      "orderCount": 123
-    }
-  ]
-}
-```
-
-### 5. Filter Options (Dropdowns)
-```
-GET /api/sales/filter-options
-```
-
-**Response Format:**
-```json
-{
-  "success": true,
-  "data": {
-    "categories": [
-      {
-        "id": 1,
-        "name": "Party Rentals"
-      },
-      {
-        "id": 2,
-        "name": "Event Equipment"
-      }
-    ],
-    "products": [
-      {
-        "id": 1,
-        "name": "Bounce House",
-        "categoryId": 1
-      },
-      {
-        "id": 2,
-        "name": "Table & Chairs Set",
-        "categoryId": 1
-      }
-    ]
-  }
-}
-```
-
----
-
-## Laravel Implementation
-
-### Directory Structure
-```
-app/
-├── Http/
-│   ├── Controllers/
-│   │   └── Api/
-│   │       └── SalesReportController.php
-│   ├── Requests/
-│   │   └── SalesReportRequest.php
-│   └── Resources/
-│       ├── SalesDataPointResource.php
-│       └── TopProductResource.php
-├── Services/
-│   └── SalesReportService.php
-└── Models/
-    ├── Order.php
-    ├── OrderItem.php
-    ├── Category.php
-    └── Product.php
-```
-
-### Step 1: Create Models
-
-#### Order Model
-```php
-<?php
-
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-
-class Order extends Model
-{
-    protected $fillable = [
-        'order_number',
-        'customer_id',
-        'payment_status',
-        'payment_date',
-        'sales_tax',
-    ];
-
-    protected $casts = [
-        'payment_date' => 'datetime',
-        'sales_tax' => 'decimal:2',
-    ];
-
-    public function items(): HasMany
-    {
-        return $this->hasMany(OrderItem::class);
-    }
-
-    public function scopePaid($query)
-    {
-        return $query->where('payment_status', 'PAID')
-                    ->whereNotNull('payment_date');
-    }
-}
-```
-
-#### OrderItem Model
-```php
-<?php
-
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
-class OrderItem extends Model
-{
-    protected $fillable = [
-        'order_id',
-        'item_type',
-        'category_id',
-        'product_id',
-        'product_name',
-        'subtotal',
-        'shipping_cost',
-        'processing_fees',
-        'quantity',
-    ];
-
-    protected $casts = [
-        'subtotal' => 'decimal:2',
-        'shipping_cost' => 'decimal:2',
-        'processing_fees' => 'decimal:2',
-        'quantity' => 'integer',
-    ];
-
-    public function order(): BelongsTo
-    {
-        return $this->belongsTo(Order::class);
-    }
-
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(Category::class);
-    }
-
-    public function product(): BelongsTo
-    {
-        return $this->belongsTo(Product::class);
-    }
-}
-```
-
-### Step 2: Create Service Class
-
-#### SalesReportService.php
-```php
-<?php
-
-namespace App\Services;
-
-use App\Models\OrderItem;
-use Illuminate\Support\Collection;
-use Carbon\Carbon;
-
-class SalesReportService
-{
-    /**
-     * Get rolling 30 days comparison
-     */
-    public function getRolling30Days(array $filters = []): Collection
-    {
-        $today = Carbon::today();
-        $thirtyDaysAgo = $today->copy()->subDays(30);
-        $sixtyDaysAgo = $today->copy()->subDays(60);
-
-        $query = $this->buildBaseQuery($filters);
-        $data = $query->get();
-
-        return $this->formatDateRangeData(
-            $data,
-            $sixtyDaysAgo,
-            $today,
-            30,
-            $filters
-        );
-    }
-
-    /**
-     * Get 7-day comparison
-     */
-    public function get7DayComparison(array $filters = []): Collection
-    {
-        $today = Carbon::today();
-        $sevenDaysAgo = $today->copy()->subDays(7);
-        $fourteenDaysAgo = $today->copy()->subDays(14);
-
-        $query = $this->buildBaseQuery($filters);
-        $data = $query->get();
-
-        return $this->formatDateRangeData(
-            $data,
-            $fourteenDaysAgo,
-            $today,
-            7,
-            $filters
-        );
-    }
-
-    /**
-     * Get last month comparison (complete previous month vs month before that)
-     */
-    public function getLastMonthComparison(array $filters = []): Collection
-    {
-        $today = Carbon::today();
-
-        // Get first day of current month
-        $firstDayCurrentMonth = $today->copy()->startOfMonth();
-
-        // Last month (previous complete month)
-        $lastMonthStart = $firstDayCurrentMonth->copy()->subMonth()->startOfMonth();
-        $lastMonthEnd = $firstDayCurrentMonth->copy()->subMonth()->endOfMonth();
-
-        // Month before last month
-        $monthBeforeLastStart = $lastMonthStart->copy()->subMonth()->startOfMonth();
-        $monthBeforeLastEnd = $lastMonthStart->copy()->subMonth()->endOfMonth();
-
-        $query = $this->buildBaseQuery($filters);
-        $data = $query->get();
-
-        $salesByDate = $this->aggregateSalesByDate($data, $filters);
-
-        $result = collect();
-
-        // Add month before last (previous period)
-        $daysInMonthBeforeLast = $monthBeforeLastStart->daysInMonth;
-        for ($i = 0; $i < $daysInMonthBeforeLast; $i++) {
-            $date = $monthBeforeLastStart->copy()->addDays($i);
-            $dateStr = $date->format('Y-m-d');
-
-            $result->push([
-                'date' => $dateStr,
-                'sales' => $salesByDate[$dateStr] ?? 0,
-                'period' => 'previous'
-            ]);
-        }
-
-        // Add last month (current period)
-        $daysInLastMonth = $lastMonthStart->daysInMonth;
-        for ($i = 0; $i < $daysInLastMonth; $i++) {
-            $date = $lastMonthStart->copy()->addDays($i);
-            $dateStr = $date->format('Y-m-d');
-
-            $result->push([
-                'date' => $dateStr,
-                'sales' => $salesByDate[$dateStr] ?? 0,
-                'period' => 'current'
-            ]);
-        }
-
-        return $result;
-    }
-
-    /**
-     * Get top products by sales
-     */
-    public function getTopProducts(int $limit = 10): Collection
-    {
-        return OrderItem::query()
-            ->join('orders', 'order_items.order_id', '=', 'orders.id')
-            ->where('orders.payment_status', 'PAID')
-            ->whereNotNull('orders.payment_date')
-            ->selectRaw('
-                order_items.product_name,
-                SUM(order_items.subtotal +
-                    COALESCE(order_items.shipping_cost, 0) +
-                    COALESCE(order_items.processing_fees, 0)) as total_sales,
-                COUNT(DISTINCT order_items.order_id) as order_count
-            ')
-            ->groupBy('order_items.product_name')
-            ->orderByDesc('total_sales')
-            ->limit($limit)
-            ->get()
-            ->map(fn($item) => [
-                'productName' => $item->product_name,
-                'totalSales' => (float) $item->total_sales,
-                'orderCount' => (int) $item->order_count,
-            ]);
-    }
-
-    /**
-     * Build base query with filters
-     */
-    protected function buildBaseQuery(array $filters)
-    {
-        $query = OrderItem::query()
-            ->join('orders', 'order_items.order_id', '=', 'orders.id')
-            ->where('orders.payment_status', 'PAID')
-            ->whereNotNull('orders.payment_date')
-            ->select(
-                'order_items.*',
-                'orders.payment_date'
-            );
-
-        // Category filter
-        if (!empty($filters['category']) && $filters['category'] !== 'all') {
-            $query->where('order_items.category_id', $filters['category']);
-        }
-
-        // Product filter
-        if (!empty($filters['product']) && $filters['product'] !== 'all') {
-            $query->where('order_items.product_id', $filters['product']);
-        }
-
-        // Item type filter
-        if (!empty($filters['itemType'])) {
-            if ($filters['itemType'] === 'rental') {
-                $query->where('order_items.item_type', 'rental');
-            } elseif ($filters['itemType'] === 'retail') {
-                $query->where('order_items.item_type', 'retail');
-            }
-        }
-
-        // Exclude/Only filters
-        if (!empty($filters['excludeWaiver'])) {
-            $query->where('order_items.item_type', '!=', 'damage_waiver');
-        }
-
-        if (!empty($filters['waiverOnly'])) {
-            $query->where('order_items.item_type', 'damage_waiver');
-        }
-
-        if (!empty($filters['excludeInsurance'])) {
-            $query->where('order_items.item_type', '!=', 'thrown_track_insurance');
-        }
-
-        if (!empty($filters['insuranceOnly'])) {
-            $query->where('order_items.item_type', 'thrown_track_insurance');
-        }
-
-        if (!empty($filters['excludeDelivery'])) {
-            $query->where('order_items.item_type', '!=', 'delivery');
-        }
-
-        if (!empty($filters['deliveryOnly'])) {
-            $query->where('order_items.item_type', 'delivery');
-        }
-
-        return $query;
-    }
-
-    /**
-     * Aggregate sales by date
-     */
-    protected function aggregateSalesByDate(Collection $data, array $filters): array
-    {
-        $salesByDate = [];
-        $excludeShipping = !empty($filters['excludeShipping']);
-
-        foreach ($data as $item) {
-            $date = Carbon::parse($item->payment_date)->format('Y-m-d');
-            $shippingCost = $excludeShipping ? 0 : (float) $item->shipping_cost;
-
-            // Revenue formula: subtotal + shipping + fees (NO tax)
-            $amount = (float) $item->subtotal + $shippingCost + (float) $item->processing_fees;
-
-            if (!isset($salesByDate[$date])) {
-                $salesByDate[$date] = 0;
-            }
-            $salesByDate[$date] += $amount;
-        }
-
-        return $salesByDate;
-    }
-
-    /**
-     * Format data for date range comparison
-     */
-    protected function formatDateRangeData(
-        Collection $data,
-        Carbon $startDate,
-        Carbon $endDate,
-        int $periodDays,
-        array $filters
-    ): Collection {
-        $salesByDate = $this->aggregateSalesByDate($data, $filters);
-        $result = collect();
-
-        // Previous period
-        for ($i = 0; $i < $periodDays; $i++) {
-            $date = $startDate->copy()->addDays($i);
-            $dateStr = $date->format('Y-m-d');
-
-            $result->push([
-                'date' => $dateStr,
-                'sales' => $salesByDate[$dateStr] ?? 0,
-                'period' => 'previous'
-            ]);
-        }
-
-        // Current period
-        $currentStart = $endDate->copy()->subDays($periodDays);
-        for ($i = 0; $i < $periodDays; $i++) {
-            $date = $currentStart->copy()->addDays($i);
-            $dateStr = $date->format('Y-m-d');
-
-            $result->push([
-                'date' => $dateStr,
-                'sales' => $salesByDate[$dateStr] ?? 0,
-                'period' => 'current'
-            ]);
-        }
-
-        return $result;
-    }
-}
-```
-
-### Step 3: Create Controller
-
-#### SalesReportController.php
-```php
-<?php
-
-namespace App\Http\Controllers\Api;
-
-use App\Http\Controllers\Controller;
-use App\Services\SalesReportService;
-use App\Models\Category;
-use App\Models\Product;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-
-class SalesReportController extends Controller
-{
-    protected SalesReportService $salesService;
-
-    public function __construct(SalesReportService $salesService)
-    {
-        $this->salesService = $salesService;
-    }
-
-    /**
-     * Rolling 30 days report
-     */
-    public function rolling30Days(Request $request): JsonResponse
-    {
-        $filters = $this->getFilters($request);
-        $data = $this->salesService->getRolling30Days($filters);
-
-        return response()->json([
-            'success' => true,
-            'data' => $data
-        ]);
-    }
-
-    /**
-     * 7-day comparison report
-     */
-    public function sevenDayComparison(Request $request): JsonResponse
-    {
-        $filters = $this->getFilters($request);
-        $data = $this->salesService->get7DayComparison($filters);
-
-        return response()->json([
-            'success' => true,
-            'data' => $data
-        ]);
-    }
-
-    /**
-     * Last month comparison report
-     */
-    public function lastMonthComparison(Request $request): JsonResponse
-    {
-        $filters = $this->getFilters($request);
-        $data = $this->salesService->getLastMonthComparison($filters);
-
-        return response()->json([
-            'success' => true,
-            'data' => $data
-        ]);
-    }
-
-    /**
-     * Top products report
-     */
-    public function topProducts(Request $request): JsonResponse
-    {
-        $limit = $request->input('limit', 10);
-        $data = $this->salesService->getTopProducts($limit);
-
-        return response()->json([
-            'success' => true,
-            'data' => $data
-        ]);
-    }
-
-    /**
-     * Get filter options (categories and products)
-     */
-    public function filterOptions(): JsonResponse
-    {
-        $categories = Category::select('id', 'name')
-            ->orderBy('name')
-            ->get();
-
-        $products = Product::select('id', 'name', 'category_id')
-            ->orderBy('name')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'categories' => $categories,
-                'products' => $products
-            ]
-        ]);
-    }
-
-    /**
-     * Extract filters from request
-     */
-    protected function getFilters(Request $request): array
-    {
-        return [
-            'itemType' => $request->input('itemType', 'all'),
-            'category' => $request->input('category', 'all'),
-            'product' => $request->input('product', 'all'),
-            'excludeWaiver' => $request->boolean('excludeWaiver'),
-            'waiverOnly' => $request->boolean('waiverOnly'),
-            'excludeInsurance' => $request->boolean('excludeInsurance'),
-            'insuranceOnly' => $request->boolean('insuranceOnly'),
-            'excludeShipping' => $request->boolean('excludeShipping'),
-            'excludeDelivery' => $request->boolean('excludeDelivery'),
-            'deliveryOnly' => $request->boolean('deliveryOnly'),
-        ];
-    }
-}
-```
-
-### Step 4: Register Routes
-
-#### routes/api.php
-```php
-<?php
-
-use App\Http\Controllers\Api\SalesReportController;
-use Illuminate\Support\Facades\Route;
-
-Route::middleware(['auth:sanctum'])->prefix('sales')->group(function () {
-    Route::get('/rolling-30-days', [SalesReportController::class, 'rolling30Days']);
-    Route::get('/7-day-comparison', [SalesReportController::class, 'sevenDayComparison']);
-    Route::get('/last-month-comparison', [SalesReportController::class, 'lastMonthComparison']);
-    Route::get('/top-products', [SalesReportController::class, 'topProducts']);
-    Route::get('/filter-options', [SalesReportController::class, 'filterOptions']);
-});
-```
-
-### Step 5: Create Migrations
-
-#### Create Orders Migration
-```bash
-php artisan make:migration create_orders_table
-```
-
-```php
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    public function up()
-    {
-        Schema::create('orders', function (Blueprint $table) {
-            $table->id();
-            $table->string('order_number')->unique();
-            $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
-            $table->enum('payment_status', ['PENDING', 'PAID', 'REFUNDED', 'FAILED']);
-            $table->dateTime('payment_date')->nullable();
-            $table->decimal('sales_tax', 10, 2)->default(0);
-            $table->timestamps();
-
-            $table->index('payment_status');
-            $table->index('payment_date');
-        });
-    }
-
-    public function down()
-    {
-        Schema::dropIfExists('orders');
-    }
-};
-```
-
-#### Create Order Items Migration
-```bash
-php artisan make:migration create_order_items_table
-```
-
-```php
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    public function up()
-    {
-        Schema::create('order_items', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
-            $table->enum('item_type', [
-                'rental',
-                'retail',
-                'damage_waiver',
-                'thrown_track_insurance',
-                'delivery'
-            ]);
-            $table->foreignId('category_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('product_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('product_name');
-            $table->decimal('subtotal', 10, 2);
-            $table->decimal('shipping_cost', 10, 2)->default(0);
-            $table->decimal('processing_fees', 10, 2)->default(0);
-            $table->integer('quantity')->default(1);
-            $table->timestamps();
-
-            $table->index('item_type');
-            $table->index('category_id');
-            $table->index('product_id');
-        });
-    }
-
-    public function down()
-    {
-        Schema::dropIfExists('order_items');
-    }
-};
-```
-
----
-
-## Frontend Integration
-
-### Step 1: Update Environment Variables
-
-Create or update `.env` file in your React project:
-
-```env
-VITE_API_BASE_URL=https://yourdomain.com/api
-VITE_API_TOKEN=your_laravel_sanctum_token
-```
-
-### Step 2: Update API Service
-
-Update `src/services/salesApi.ts` to use Laravel endpoints:
-
+### Supabase Client
+Uses `@supabase/supabase-js` for database operations:
 ```typescript
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const API_TOKEN = import.meta.env.VITE_API_TOKEN;
+import { supabase } from '../lib/supabase';
+```
 
-const headers = {
-  'Authorization': `Bearer ${API_TOKEN}`,
-  'Content-Type': 'application/json',
-  'Accept': 'application/json',
-};
+### Available Functions
 
-// Update each function to use Laravel endpoints
-async getRolling30Days(filters: SalesFilters = {}): Promise<SalesDataPoint[]> {
-  const queryString = new URLSearchParams(
-    Object.entries(filters).reduce((acc, [key, value]) => {
-      if (value !== 'all' && value !== false) {
-        acc[key] = String(value);
-      }
-      return acc;
-    }, {} as Record<string, string>)
-  ).toString();
+#### 1. `getRolling30Days(filters)`
+Retrieves 60 days of sales data (30 current + 30 previous).
 
-  const response = await fetch(
-    `${API_BASE_URL}/sales/rolling-30-days?${queryString}`,
-    { headers }
-  );
+**Parameters:**
+```typescript
+filters: SalesFilters = {}
+```
 
-  const result = await response.json();
-  return result.data;
+**Returns:**
+```typescript
+Promise<SalesDataPoint[]>
+```
+
+**Response Structure:**
+```typescript
+[
+  {
+    date: "2024-01-15",
+    sales: 1250.50,
+    period: "current"
+  },
+  {
+    date: "2023-12-15",
+    sales: 1100.00,
+    period: "previous"
+  }
+]
+```
+
+**Query Logic:**
+- Fetches order_items with PAID orders
+- Joins with orders table to get payment_date and store_id
+- Applies all filters from SalesFilters interface
+- Aggregates sales by date
+- Returns 60 data points (30 previous + 30 current)
+
+#### 2. `get7DayComparison(filters)`
+Retrieves 14 days of sales data (7 current + 7 previous).
+
+**Parameters:**
+```typescript
+filters: SalesFilters = {}
+```
+
+**Returns:**
+```typescript
+Promise<SalesDataPoint[]>
+```
+
+**Response Structure:** Same as getRolling30Days
+
+**Query Logic:**
+- Similar to getRolling30Days but with 14-day window
+- Returns 14 data points (7 previous + 7 current)
+
+#### 3. `getLastMonthComparison(filters)`
+Retrieves last complete month vs month before that.
+
+**Parameters:**
+```typescript
+filters: SalesFilters = {}
+```
+
+**Returns:**
+```typescript
+Promise<SalesDataPoint[]>
+```
+
+**Response Structure:** Same as getRolling30Days
+
+**Query Logic:**
+- Calculates previous complete calendar month
+- Calculates month before that
+- Returns all days from both months
+- Handles variable month lengths (28-31 days)
+
+#### 4. `getTopProducts(limit)`
+Retrieves top products by sales volume.
+
+**Parameters:**
+```typescript
+limit: number = 10
+```
+
+**Returns:**
+```typescript
+Promise<TopProduct[]>
+```
+
+**Response Structure:**
+```typescript
+[
+  {
+    id: "uuid",
+    name: "Product Name",
+    total_sales: 25000.00,
+    order_count: 45
+  }
+]
+```
+
+**Query Logic:**
+- Excludes damage_waiver and thrown_track_insurance
+- Groups by product_id
+- Sums subtotal for each product
+- Counts distinct orders
+- Orders by total_sales descending
+- Limits results
+
+#### 5. `getTopCategories(limit)`
+Retrieves top categories by sales volume.
+
+**Parameters:**
+```typescript
+limit: number = 5
+```
+
+**Returns:**
+```typescript
+Promise<TopCategory[]>
+```
+
+**Response Structure:**
+```typescript
+[
+  {
+    id: "uuid",
+    name: "Category Name",
+    total_sales: 50000.00,
+    order_count: 120
+  }
+]
+```
+
+**Query Logic:**
+- Similar to getTopProducts but groups by category_id
+- Excludes damage_waiver and thrown_track_insurance
+
+#### 6. `getCategories()`
+Retrieves all available categories.
+
+**Returns:**
+```typescript
+Promise<Array<{id: string, name: string}>>
+```
+
+**Response Structure:**
+```typescript
+[
+  { id: "uuid", name: "Party Rentals" },
+  { id: "uuid", name: "Event Equipment" }
+]
+```
+
+#### 7. `getProducts(categoryId)`
+Retrieves products, optionally filtered by category.
+
+**Parameters:**
+```typescript
+categoryId?: string
+```
+
+**Returns:**
+```typescript
+Promise<Array<{id: string, name: string, category_id: string}>>
+```
+
+**Response Structure:**
+```typescript
+[
+  { id: "uuid", name: "Bounce House", category_id: "uuid" },
+  { id: "uuid", name: "Table Set", category_id: "uuid" }
+]
+```
+
+#### 8. `getStores()`
+Retrieves all available stores.
+
+**Returns:**
+```typescript
+Promise<Array<{id: string, name: string}>>
+```
+
+**Response Structure:**
+```typescript
+[
+  { id: "uuid", name: "Bon Aqua" },
+  { id: "uuid", name: "Waverly" }
+]
+```
+
+### TypeScript Interfaces
+
+#### SalesDataPoint
+```typescript
+export interface SalesDataPoint {
+  date: string;
+  sales: number;
+  period: 'current' | 'previous';
 }
 ```
 
-### Step 3: Deploy React App
+#### TopProduct
+```typescript
+export interface TopProduct {
+  id: string;
+  name: string;
+  total_sales: number;
+  order_count: number;
+}
+```
 
-#### Option A: Separate Domain
-Deploy React app to a separate domain (e.g., dashboard.yourdomain.com)
+#### TopCategory
+```typescript
+export interface TopCategory {
+  id: string;
+  name: string;
+  total_sales: number;
+  order_count: number;
+}
+```
 
-#### Option B: Laravel Integration
-Place built React files in Laravel's public directory:
+#### SalesFilters
+```typescript
+export interface SalesFilters {
+  store?: string;
+  itemType?: 'all' | 'rental' | 'retail';
+  category?: string;
+  product?: string;
+  excludeWaiver?: boolean;
+  waiverOnly?: boolean;
+  excludeInsurance?: boolean;
+  insuranceOnly?: boolean;
+  excludeShipping?: boolean;
+  excludeDelivery?: boolean;
+  deliveryOnly?: boolean;
+}
+```
 
-1. Build the React app:
+---
+
+## Frontend Implementation
+
+### Project Structure
+```
+src/
+├── components/
+│   └── SalesTrendReport.tsx    # Main dashboard component
+├── services/
+│   └── salesApi.ts              # Supabase API functions
+├── lib/
+│   └── supabase.ts              # Supabase client configuration
+├── App.tsx                       # App entry point
+├── main.tsx                      # React DOM render
+└── index.css                     # Global styles (Tailwind)
+
+supabase/
+└── migrations/                   # Database migrations
+    ├── 20260114112157_create_sales_reporting_schema.sql
+    ├── 20260114131651_add_sales_tax_column.sql
+    └── 20260114160615_add_stores_table.sql
+```
+
+### Component Overview: SalesTrendReport.tsx
+
+The main dashboard component manages all state and UI logic.
+
+**Key State Variables:**
+- `reportType`: Current report view (rolling30, 7day, lastMonth)
+- `chartData`: Sales data points for current view
+- `topProducts`: Top 10 products data
+- `topCategories`: Top 5 categories data
+- `stores`: Available store locations
+- `categories`: Available product categories
+- `products`: Products filtered by selected category
+- `filters`: Current filter state (SalesFilters interface)
+- `loading`: Loading state for async operations
+
+**Main Functions:**
+- `loadStores()`: Fetches available stores on mount
+- `loadCategories()`: Fetches available categories on mount
+- `loadProducts(categoryId)`: Fetches products for selected category
+- `loadData()`: Fetches sales data based on current report type and filters
+- `loadTopProducts()`: Fetches top 10 products and switches view
+- `loadTopCategories()`: Fetches top 5 categories and switches view
+
+**React Effects:**
+```typescript
+// Load reference data on mount
+useEffect(() => {
+  loadStores();
+  loadCategories();
+}, []);
+
+// Load products when category changes
+useEffect(() => {
+  if (filters.category && filters.category !== 'all') {
+    loadProducts(filters.category);
+  }
+}, [filters.category]);
+
+// Reload data when report type or filters change
+useEffect(() => {
+  loadData();
+}, [reportType, filters]);
+```
+
+### Key Features Implementation
+
+#### 1. Period Comparison Charts
+Uses Recharts LineChart with two lines:
+- Current Period (blue, solid line)
+- Previous Period (gray, dashed line)
+
+#### 2. Top Products/Categories Bar Charts
+Uses Recharts BarChart with:
+- Product/category names on X-axis
+- Sales values on Y-axis
+- Value labels on top of bars
+- Click to toggle between list and trend view
+
+#### 3. KPI Cards
+Four summary cards showing:
+- Total Sales (current period)
+- Previous Period Sales
+- Growth Rate (with trend icon)
+- Daily Average
+
+#### 4. Filter Panel
+Two-row layout:
+- Row 1: Dropdowns (Store, Item Type, Category, Product) + Action buttons
+- Row 2: Checkboxes for exclusion/only filters
+
+#### 5. Business Rules Display
+Collapsible panel explaining:
+- Only PAID orders count
+- Sales tax excluded
+- Revenue formula
+- Filter usage
+
+---
+
+## Deployment
+
+### Build for Production
+
+1. **Build the Application**
 ```bash
 npm run build
 ```
 
-2. Copy `dist` folder contents to Laravel:
+This creates optimized production files in the `dist/` directory.
+
+2. **Preview Production Build Locally**
 ```bash
-cp -r dist/* /path/to/laravel/public/dashboard/
+npm run preview
 ```
 
-3. Create a Laravel route to serve the React app:
-```php
-// routes/web.php
-Route::get('/dashboard/{any}', function () {
-    return view('dashboard');
-})->where('any', '.*');
+### Environment Variables for Production
+
+Ensure the following environment variables are set in your production environment:
+
+```env
+VITE_SUPABASE_URL=your-production-supabase-url
+VITE_SUPABASE_ANON_KEY=your-production-anon-key
 ```
 
-4. Create blade view:
-```blade
-<!-- resources/views/dashboard.blade.php -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Dashboard</title>
-    <link rel="stylesheet" href="{{ asset('dashboard/assets/index.css') }}">
-</head>
-<body>
-    <div id="root"></div>
-    <script type="module" src="{{ asset('dashboard/assets/index.js') }}"></script>
-</body>
-</html>
-```
+### Deployment Options
+
+#### Option 1: Vercel (Recommended)
+1. Connect your repository to Vercel
+2. Configure build settings:
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+3. Add environment variables in Vercel dashboard
+4. Deploy
+
+#### Option 2: Netlify
+1. Connect your repository to Netlify
+2. Configure build settings:
+   - Build Command: `npm run build`
+   - Publish Directory: `dist`
+3. Add environment variables in Netlify dashboard
+4. Deploy
+
+#### Option 3: Custom Server
+1. Build the application: `npm run build`
+2. Copy `dist/` contents to your web server
+3. Configure web server to serve `index.html` for all routes (SPA mode)
+4. Ensure HTTPS is enabled
+
+### Post-Deployment Checklist
+
+- [ ] Verify environment variables are correct
+- [ ] Test all three report types load correctly
+- [ ] Verify store filter works (Bon Aqua, Waverly, All Stores)
+- [ ] Test filter combinations
+- [ ] Verify charts render properly
+- [ ] Test on mobile devices
+- [ ] Check browser console for errors
+- [ ] Verify Supabase connection is working
+- [ ] Test performance (page load time < 3 seconds)
 
 ---
 
 ## Testing Guidelines
 
-### Backend Testing
+### Data Validation Testing
 
-#### 1. Unit Tests for Service Layer
-```bash
-php artisan make:test SalesReportServiceTest --unit
-```
+Test that business rules are enforced:
 
-Test cases:
-- Verify only PAID orders are included
-- Verify sales tax is excluded
-- Verify revenue formula (subtotal + shipping + fees)
-- Test each filter independently
-- Test filter combinations
-- Verify date range calculations
+#### 1. Revenue Calculation Tests
+- Verify only PAID orders are included in calculations
+- Verify PENDING, REFUNDED, and FAILED orders are excluded
+- Verify sales_tax is excluded from revenue totals
+- Verify formula: revenue = subtotal + shipping_cost + processing_fees
+- Test excludeShipping filter sets shipping_cost to 0 in calculations
 
-#### 2. Feature Tests for API Endpoints
-```bash
-php artisan make:test SalesReportApiTest
-```
+#### 2. Store Filter Tests
+- Test "All Stores" shows combined data from all locations
+- Test "Bon Aqua" shows only Bon Aqua store data
+- Test "Waverly" shows only Waverly store data
+- Verify orders without store_id are handled appropriately
 
-Test cases:
-- Test each endpoint returns correct structure
-- Test authentication requirements
-- Test filter parameters
-- Test empty results
-- Test large datasets
+#### 3. Filter Combination Tests
+- Test multiple exclude filters together (e.g., exclude waiver + exclude insurance)
+- Test multiple "only" filters together (e.g., waiver only + insurance only)
+- Verify exclude and "only" filters are mutually exclusive
+- Test category + product filters work together
+- Test item type filter hides/shows appropriate checkboxes
 
-### Frontend Testing
+#### 4. Date Range Tests
+- Verify Rolling 30 Days returns exactly 60 data points
+- Verify 7-Day Comparison returns exactly 14 data points
+- Verify Last Month handles variable month lengths (28-31 days)
+- Test data around month boundaries
+- Test leap year handling (February 29)
+
+### UI/UX Testing
 
 #### Manual Testing Checklist
 - [ ] All three report types load correctly
@@ -1071,107 +906,35 @@ Create test data with:
 
 ### Performance Considerations
 
-1. **Database Indexing**: Ensure indexes exist on:
-   - `orders.payment_status`
-   - `orders.payment_date`
-   - `order_items.order_id`
-   - `order_items.item_type`
-   - `order_items.category_id`
-   - `order_items.product_id`
+1. **Database Indexing**: Supabase automatically creates indexes on:
+   - Primary keys (all `id` columns)
+   - Foreign keys (all reference columns)
+   - Consider additional indexes for frequently filtered columns
 
 2. **Query Optimization**:
-   - Use eager loading for relationships
-   - Consider caching for filter options
-   - Add database query logging in development
+   - Supabase client handles query optimization automatically
+   - Use `.select()` to limit returned columns
+   - Monitor query performance in Supabase dashboard
 
-3. **API Response Time**:
-   - Target: < 500ms for report endpoints
-   - Consider Redis caching for heavy queries
-   - Use database query caching
+3. **Response Time Targets**:
+   - Target: < 500ms for report data queries
+   - Target: < 2 seconds for chart rendering
+   - Consider implementing data caching for frequently accessed data
 
----
+### Support & Maintenance
 
-## Deployment Checklist
-
-### Backend (Laravel)
-- [ ] Run migrations on production database
-- [ ] Configure CORS for frontend domain
-- [ ] Set up Sanctum authentication
-- [ ] Configure rate limiting on API routes
-- [ ] Test API endpoints with Postman/Insomnia
-- [ ] Set up error logging and monitoring
-- [ ] Configure database indexes
-- [ ] Set up scheduled tasks (if needed for data aggregation)
-
-### Frontend (React)
-- [ ] Update `.env` with production API URL
-- [ ] Build production bundle
-- [ ] Deploy to hosting/CDN
-- [ ] Test all report types in production
-- [ ] Verify authentication flow
-- [ ] Test on multiple browsers
-- [ ] Test responsive design
-- [ ] Set up error tracking (e.g., Sentry)
-
-### Documentation
-- [ ] Update API documentation
-- [ ] Document authentication setup
-- [ ] Create user guide for dashboard
-- [ ] Document filter behavior
-- [ ] Create troubleshooting guide
-
----
-
-## Common Issues & Solutions
-
-### Issue: Incorrect Sales Totals
-**Solution**: Verify:
-1. Only PAID orders are being counted
-2. Sales tax is NOT included in calculations
-3. Shipping cost exclusion filter is working
-4. Item type filters are applied correctly
-
-### Issue: Date Ranges Don't Match
-**Solution**: Check:
-1. Server timezone matches expected timezone
-2. Carbon date calculations in service layer
-3. Frontend date formatting matches backend
-
-### Issue: Performance Issues
-**Solution**:
-1. Add database indexes
-2. Implement query caching
-3. Use pagination for top products
-4. Consider data aggregation tables for large datasets
-
-### Issue: CORS Errors
-**Solution**: Update `config/cors.php`:
-```php
-'paths' => ['api/*'],
-'allowed_origins' => ['https://dashboard.yourdomain.com'],
-'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-'allowed_headers' => ['*'],
-```
-
----
-
-## Support & Maintenance
-
-### Regular Maintenance Tasks
-1. Review query performance monthly
-2. Archive old sales data (keep aggregated totals)
+#### Regular Maintenance Tasks
+1. Review Supabase dashboard for slow queries
+2. Monitor database storage usage
 3. Update test data to reflect current business rules
-4. Review and optimize indexes
-5. Monitor API response times
+4. Review and optimize queries quarterly
+5. Keep dependencies updated (`npm update`)
 
-### Future Enhancements
-- Export to CSV/Excel
-- Email scheduled reports
-- Custom date range selection
-- Year-over-year comparisons
-- Revenue forecasting
-- Product category drill-down
-- Customer segmentation analysis
+#### Database Maintenance
+1. Periodically review RLS policies
+2. Archive old data if needed (orders older than 2 years)
+3. Monitor database connection limits
+4. Review and update store locations as needed
 
 ---
 
@@ -1183,13 +946,101 @@ Create test data with:
 - **Frontend Developer**: [Name/Email]
 
 ### Technical Resources
-- Laravel Documentation: https://laravel.com/docs
-- React Documentation: https://react.dev
-- Recharts Documentation: https://recharts.org
-- Carbon (PHP Dates): https://carbon.nesbot.com/docs
+- **Supabase Documentation**: https://supabase.com/docs
+- **Supabase JavaScript Client**: https://supabase.com/docs/reference/javascript
+- **React Documentation**: https://react.dev
+- **Recharts Documentation**: https://recharts.org
+- **Tailwind CSS**: https://tailwindcss.com/docs
+- **Vite Documentation**: https://vitejs.dev
+- **TypeScript Documentation**: https://www.typescriptlang.org/docs
+
+### Supabase Dashboard
+Access your Supabase project dashboard to:
+- View and edit database tables
+- Run SQL queries
+- Manage RLS policies
+- View API logs
+- Monitor performance
 
 ---
 
-**Document Version**: 1.0
+## Common Issues & Troubleshooting
+
+### Issue: Data Not Loading
+**Possible Causes:**
+- Supabase connection error
+- RLS policies blocking access
+- Invalid environment variables
+
+**Solutions:**
+1. Check browser console for errors
+2. Verify `.env` file has correct VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+3. Check Supabase dashboard for RLS policy issues
+4. Verify network connection
+
+### Issue: Incorrect Sales Totals
+**Possible Causes:**
+- Orders without payment_date
+- Incorrect payment_status values
+- Sales tax being included
+
+**Solutions:**
+1. Verify only PAID orders have payment_date set
+2. Check order_items table for correct values
+3. Verify business rule implementation in queries
+4. Test with known data set
+
+### Issue: Store Filter Not Working
+**Possible Causes:**
+- Orders don't have store_id assigned
+- Store doesn't exist in stores table
+
+**Solutions:**
+1. Check orders table for store_id values
+2. Verify stores exist with correct IDs
+3. Run query: `SELECT DISTINCT store_id FROM orders;`
+4. Assign missing store_id values to orders
+
+### Issue: Charts Not Rendering
+**Possible Causes:**
+- Invalid data format
+- Missing or zero data points
+- Recharts library error
+
+**Solutions:**
+1. Check browser console for Recharts errors
+2. Verify data structure matches expected format
+3. Check if loading state is stuck
+4. Clear browser cache and reload
+
+---
+
+## Future Enhancements
+
+### Planned Features
+- Export to CSV/Excel functionality
+- Email scheduled reports
+- Custom date range selection
+- Year-over-year comparisons
+- Revenue forecasting
+- Multi-currency support
+- Customer segmentation analysis
+- Store performance comparison dashboard
+
+### Technical Improvements
+- Implement data caching for faster load times
+- Add authentication and user roles
+- Create admin panel for store management
+- Implement real-time data updates
+- Add automated testing suite
+- Performance optimizations for large datasets
+
+---
+
+**Document Version**: 2.0
 **Last Updated**: January 14, 2026
 **Next Review Date**: March 14, 2026
+
+**Changelog:**
+- v2.0 (2026-01-14): Updated for Supabase implementation, added store filtering
+- v1.0 (2026-01-14): Initial Laravel-based documentation
