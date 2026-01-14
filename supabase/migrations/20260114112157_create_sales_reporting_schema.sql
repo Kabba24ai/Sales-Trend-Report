@@ -18,7 +18,7 @@
       - `id` (uuid, primary key)
       - `order_number` (text, unique) - Human-readable order number
       - `customer_name` (text)
-      - `payment_status` (text) - PAID, PENDING, FAILED, CANCELLED
+      - `payment_status` (text) - PAID, REFUNDED, PENDING, FAILED, CANCELLED
       - `payment_method` (text) - credit_card, COD, account
       - `payment_date` (timestamptz) - When payment was received
       - `created_at` (timestamptz)
