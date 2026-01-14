@@ -327,7 +327,7 @@ export default function SalesTrendReport() {
           </div>
 
           <div className="flex items-end gap-6 mb-4">
-            <div style={{ width: '40%' }}>
+            <div style={{ width: '75px', flexShrink: 0 }}>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Item Type
               </label>
