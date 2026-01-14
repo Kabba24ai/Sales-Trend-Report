@@ -33,10 +33,12 @@ export default function SalesTrendReport() {
   const [showTopCategories, setShowTopCategories] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [stores, setStores] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
 
   const [filters, setFilters] = useState<SalesFilters>({
+    store: 'all',
     itemType: 'all',
     category: 'all',
     product: 'all',
@@ -50,6 +52,7 @@ export default function SalesTrendReport() {
   });
 
   useEffect(() => {
+    loadStores();
     loadCategories();
   }, []);
 
@@ -65,6 +68,15 @@ export default function SalesTrendReport() {
   useEffect(() => {
     loadData();
   }, [reportType, filters]);
+
+  const loadStores = async () => {
+    try {
+      const data = await salesApi.getStores();
+      setStores(data);
+    } catch (error) {
+      console.error('Error loading stores:', error);
+    }
+  };
 
   const loadCategories = async () => {
     try {
@@ -158,6 +170,7 @@ export default function SalesTrendReport() {
 
   const getActiveFiltersCount = () => {
     let count = 0;
+    if (filters.store !== 'all') count++;
     if (filters.itemType !== 'all') count++;
     if (filters.category !== 'all') count++;
     if (filters.product !== 'all') count++;
@@ -173,6 +186,7 @@ export default function SalesTrendReport() {
 
   const clearAllFilters = () => {
     setFilters({
+      store: 'all',
       itemType: 'all',
       category: 'all',
       product: 'all',
@@ -190,6 +204,7 @@ export default function SalesTrendReport() {
     setShowTopProducts(false);
     setShowTopCategories(false);
     setFilters({
+      store: 'all',
       itemType: 'all',
       category: 'all',
       product: 'all',
@@ -309,6 +324,7 @@ export default function SalesTrendReport() {
             </div>
             <button
               onClick={() => setFilters({
+                store: 'all',
                 itemType: 'all',
                 category: 'all',
                 product: 'all',
@@ -327,6 +343,22 @@ export default function SalesTrendReport() {
           </div>
 
           <div className="flex items-end gap-6 mb-4">
+            <div style={{ width: '115px', flexShrink: 0 }}>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Store
+              </label>
+              <select
+                value={filters.store}
+                onChange={(e) => setFilters({ ...filters, store: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="all">All Stores</option>
+                {stores.map(store => (
+                  <option key={store.id} value={store.id}>{store.name}</option>
+                ))}
+              </select>
+            </div>
+
             <div style={{ width: '115px', flexShrink: 0 }}>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Item Type

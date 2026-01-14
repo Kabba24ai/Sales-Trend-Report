@@ -21,6 +21,7 @@ export interface TopCategory {
 }
 
 export interface SalesFilters {
+  store?: string;
   itemType?: 'all' | 'rental' | 'retail';
   category?: string;
   product?: string;
@@ -159,11 +160,16 @@ export const salesApi = {
         item_type,
         orders!inner(
           payment_status,
-          payment_date
+          payment_date,
+          store_id
         )
       `)
       .eq('orders.payment_status', 'PAID')
       .not('orders.payment_date', 'is', null);
+
+    if (filters.store && filters.store !== 'all') {
+      query = query.eq('orders.store_id', filters.store);
+    }
 
     if (filters.category && filters.category !== 'all') {
       query = query.eq('category_id', filters.category);
@@ -273,11 +279,16 @@ export const salesApi = {
         item_type,
         orders!inner(
           payment_status,
-          payment_date
+          payment_date,
+          store_id
         )
       `)
       .eq('orders.payment_status', 'PAID')
       .not('orders.payment_date', 'is', null);
+
+    if (filters.store && filters.store !== 'all') {
+      query = query.eq('orders.store_id', filters.store);
+    }
 
     if (filters.category && filters.category !== 'all') {
       query = query.eq('category_id', filters.category);
@@ -481,6 +492,16 @@ export const salesApi = {
     }
 
     const { data, error } = await query;
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  async getStores() {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('id, name')
+      .order('name');
 
     if (error) throw error;
     return data || [];
