@@ -228,10 +228,11 @@ All database migrations are stored in: `supabase/migrations/`
 
 ### Critical Revenue Calculation Rules
 
-#### Rule #1: Only PAID Orders Count
-- **ONLY** orders with `payment_status = 'PAID'` are included in sales calculations
-- Orders with status `PENDING`, `REFUNDED`, or `FAILED` are **EXCLUDED**
-- `payment_date` must NOT be NULL
+#### Rule #1: PAID Orders and Refunds
+- **PAID** orders with `payment_status = 'PAID'` are **ADDED** to sales totals
+- **REFUNDED** orders with `payment_status = 'REFUNDED'` are **SUBTRACTED** from sales totals
+- Orders with status `PENDING` or `FAILED` are **EXCLUDED** from all calculations
+- `payment_date` must NOT be NULL for orders to be included
 
 #### Rule #2: Sales Tax is EXCLUDED
 - Sales tax is **NEVER** included in any revenue calculations
@@ -240,7 +241,11 @@ All database migrations are stored in: `supabase/migrations/`
 
 #### Rule #3: Revenue Formula
 ```
-Revenue Per Order Item = subtotal + shipping_cost + processing_fees
+For PAID orders:
+Revenue Per Order Item = +(subtotal + shipping_cost + processing_fees)
+
+For REFUNDED orders:
+Revenue Per Order Item = -(subtotal + shipping_cost + processing_fees)
 ```
 
 **Components:**
@@ -248,6 +253,8 @@ Revenue Per Order Item = subtotal + shipping_cost + processing_fees
 - `shipping_cost`: Shipping charges (can be excluded via filter)
 - `processing_fees`: Payment processing fees
 - **NO sales_tax**
+
+**Note:** Refunded orders appear as negative values in the calculations, effectively reducing the net sales totals.
 
 #### Rule #4: Filter Logic
 
@@ -473,8 +480,10 @@ Promise<SalesDataPoint[]>
 ```
 
 **Query Logic:**
-- Fetches order_items with PAID orders
-- Joins with orders table to get payment_date and store_id
+- Fetches order_items with PAID and REFUNDED orders
+- Joins with orders table to get payment_date, payment_status, and store_id
+- PAID orders: amounts are added to totals (positive)
+- REFUNDED orders: amounts are subtracted from totals (negative)
 - Applies all filters from SalesFilters interface
 - Aggregates sales by date
 - Returns 60 data points (30 previous + 30 current)
@@ -495,6 +504,8 @@ Promise<SalesDataPoint[]>
 **Response Structure:** Same as getRolling30Days
 
 **Query Logic:**
+- Fetches order_items with PAID and REFUNDED orders
+- PAID orders add to totals, REFUNDED orders subtract from totals
 - Similar to getRolling30Days but with 14-day window
 - Returns 14 data points (7 previous + 7 current)
 
@@ -514,6 +525,8 @@ Promise<SalesDataPoint[]>
 **Response Structure:** Same as getRolling30Days
 
 **Query Logic:**
+- Fetches order_items with PAID and REFUNDED orders
+- PAID orders add to totals, REFUNDED orders subtract from totals
 - Calculates previous complete calendar month
 - Calculates month before that
 - Returns all days from both months
@@ -545,9 +558,11 @@ Promise<TopProduct[]>
 ```
 
 **Query Logic:**
+- Fetches order_items with PAID and REFUNDED orders
+- PAID orders add to product totals, REFUNDED orders subtract
 - Excludes damage_waiver and thrown_track_insurance
 - Groups by product_id
-- Sums subtotal for each product
+- Sums subtotal for each product (net of refunds)
 - Counts distinct orders
 - Orders by total_sales descending
 - Limits results
@@ -578,8 +593,11 @@ Promise<TopCategory[]>
 ```
 
 **Query Logic:**
+- Fetches order_items with PAID and REFUNDED orders
+- PAID orders add to category totals, REFUNDED orders subtract
 - Similar to getTopProducts but groups by category_id
 - Excludes damage_waiver and thrown_track_insurance
+- Returns net sales per category (after refunds)
 
 #### 6. `getCategories()`
 Retrieves all available categories.
@@ -778,8 +796,9 @@ Two-row layout:
 
 #### 5. Business Rules Display
 Collapsible panel explaining:
-- Only PAID orders count
-- Sales tax excluded
+- PAID orders are added to totals
+- REFUNDED orders are subtracted from totals
+- Sales tax excluded from all calculations
 - Revenue formula
 - Filter usage
 
@@ -855,11 +874,15 @@ VITE_SUPABASE_ANON_KEY=your-production-anon-key
 Test that business rules are enforced:
 
 #### 1. Revenue Calculation Tests
-- Verify only PAID orders are included in calculations
-- Verify PENDING, REFUNDED, and FAILED orders are excluded
+- Verify PAID orders are ADDED to sales totals (positive values)
+- Verify REFUNDED orders are SUBTRACTED from sales totals (negative values)
+- Verify PENDING and FAILED orders are excluded from calculations
 - Verify sales_tax is excluded from revenue totals
-- Verify formula: revenue = subtotal + shipping_cost + processing_fees
+- Verify formula:
+  - PAID: revenue = +(subtotal + shipping_cost + processing_fees)
+  - REFUNDED: revenue = -(subtotal + shipping_cost + processing_fees)
 - Test excludeShipping filter sets shipping_cost to 0 in calculations
+- Test scenario: $100 PAID order + $50 REFUND = $50 net sales
 
 #### 2. Store Filter Tests
 - Test "All Stores" shows combined data from all locations
@@ -983,12 +1006,14 @@ Access your Supabase project dashboard to:
 - Orders without payment_date
 - Incorrect payment_status values
 - Sales tax being included
+- Refunds not properly subtracted
 
 **Solutions:**
-1. Verify only PAID orders have payment_date set
+1. Verify PAID and REFUNDED orders have payment_date set
 2. Check order_items table for correct values
-3. Verify business rule implementation in queries
-4. Test with known data set
+3. Verify business rule implementation: PAID adds, REFUNDED subtracts
+4. Test with known data set: e.g., $100 PAID + $30 REFUND should = $70
+5. Confirm PENDING and FAILED orders are excluded
 
 ### Issue: Store Filter Not Working
 **Possible Causes:**
@@ -1037,10 +1062,11 @@ Access your Supabase project dashboard to:
 
 ---
 
-**Document Version**: 2.0
+**Document Version**: 2.1
 **Last Updated**: January 14, 2026
 **Next Review Date**: March 14, 2026
 
 **Changelog:**
+- v2.1 (2026-01-14): Updated refund handling - refunds now subtract from sales totals instead of being excluded
 - v2.0 (2026-01-14): Updated for Supabase implementation, added store filtering
 - v1.0 (2026-01-14): Initial Laravel-based documentation

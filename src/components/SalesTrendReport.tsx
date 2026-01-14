@@ -275,9 +275,9 @@ export default function SalesTrendReport() {
               </button>
             </div>
             <div className="space-y-3 text-sm text-blue-800">
-              <p><strong>Rule #1:</strong> Only PAID orders count in sales calculations</p>
+              <p><strong>Rule #1:</strong> PAID orders are ADDED to sales totals; REFUNDED orders are SUBTRACTED from sales totals</p>
               <p><strong>Rule #2:</strong> Sales tax is excluded from all totals</p>
-              <p><strong>Rule #3:</strong> Formula: sales = subtotal + shipping + fees (no tax)</p>
+              <p><strong>Rule #3:</strong> Formula: PAID = +(subtotal + shipping + fees); REFUNDED = -(subtotal + shipping + fees)</p>
               <p><strong>Filters:</strong> Use filters to analyze specific categories, products, or revenue types</p>
             </div>
           </div>

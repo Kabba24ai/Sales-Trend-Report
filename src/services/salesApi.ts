@@ -54,7 +54,7 @@ export const salesApi = {
           payment_date
         )
       `)
-      .eq('orders.payment_status', 'PAID')
+      .in('orders.payment_status', ['PAID', 'REFUNDED'])
       .not('orders.payment_date', 'is', null);
 
     if (filters.category && filters.category !== 'all') {
@@ -106,7 +106,12 @@ export const salesApi = {
       const dateStr = paymentDate.toISOString().split('T')[0];
       const shippingCost = filters.excludeShipping ? 0 : Number(item.shipping_cost || 0);
       // Revenue calculation: All revenue sources excluding Sales Tax
-      const amount = Number(item.subtotal) + shippingCost + Number(item.processing_fees || 0);
+      let amount = Number(item.subtotal) + shippingCost + Number(item.processing_fees || 0);
+
+      // Subtract refunded amounts from totals
+      if (item.orders.payment_status === 'REFUNDED') {
+        amount = -amount;
+      }
 
       if (!salesByDate[dateStr]) {
         salesByDate[dateStr] = 0;
@@ -164,7 +169,7 @@ export const salesApi = {
           store_id
         )
       `)
-      .eq('orders.payment_status', 'PAID')
+      .in('orders.payment_status', ['PAID', 'REFUNDED'])
       .not('orders.payment_date', 'is', null);
 
     if (filters.store && filters.store !== 'all') {
@@ -220,7 +225,12 @@ export const salesApi = {
       const dateStr = paymentDate.toISOString().split('T')[0];
       const shippingCost = filters.excludeShipping ? 0 : Number(item.shipping_cost || 0);
       // Revenue calculation: All revenue sources excluding Sales Tax
-      const amount = Number(item.subtotal) + shippingCost + Number(item.processing_fees || 0);
+      let amount = Number(item.subtotal) + shippingCost + Number(item.processing_fees || 0);
+
+      // Subtract refunded amounts from totals
+      if (item.orders.payment_status === 'REFUNDED') {
+        amount = -amount;
+      }
 
       if (!salesByDate[dateStr]) {
         salesByDate[dateStr] = 0;
@@ -283,7 +293,7 @@ export const salesApi = {
           store_id
         )
       `)
-      .eq('orders.payment_status', 'PAID')
+      .in('orders.payment_status', ['PAID', 'REFUNDED'])
       .not('orders.payment_date', 'is', null);
 
     if (filters.store && filters.store !== 'all') {
@@ -339,7 +349,12 @@ export const salesApi = {
       const dateStr = paymentDate.toISOString().split('T')[0];
       const shippingCost = filters.excludeShipping ? 0 : Number(item.shipping_cost || 0);
       // Revenue calculation: All revenue sources excluding Sales Tax
-      const amount = Number(item.subtotal) + shippingCost + Number(item.processing_fees || 0);
+      let amount = Number(item.subtotal) + shippingCost + Number(item.processing_fees || 0);
+
+      // Subtract refunded amounts from totals
+      if (item.orders.payment_status === 'REFUNDED') {
+        amount = -amount;
+      }
 
       if (!salesByDate[dateStr]) {
         salesByDate[dateStr] = 0;
@@ -380,7 +395,7 @@ export const salesApi = {
           payment_date
         )
       `)
-      .eq('orders.payment_status', 'PAID')
+      .in('orders.payment_status', ['PAID', 'REFUNDED'])
       .neq('item_type', 'damage_waiver')
       .neq('item_type', 'thrown_track_insurance')
       .not('product_id', 'is', null);
@@ -392,7 +407,12 @@ export const salesApi = {
     data?.forEach((item: any) => {
       const productId = item.product_id;
       const productName = item.products?.name || 'Unknown Product';
-      const amount = Number(item.subtotal);
+      let amount = Number(item.subtotal);
+
+      // Subtract refunded amounts from totals
+      if (item.orders.payment_status === 'REFUNDED') {
+        amount = -amount;
+      }
 
       if (!productSales[productId]) {
         productSales[productId] = {
@@ -432,7 +452,7 @@ export const salesApi = {
           payment_date
         )
       `)
-      .eq('orders.payment_status', 'PAID')
+      .in('orders.payment_status', ['PAID', 'REFUNDED'])
       .neq('item_type', 'damage_waiver')
       .neq('item_type', 'thrown_track_insurance')
       .not('category_id', 'is', null);
@@ -444,7 +464,12 @@ export const salesApi = {
     data?.forEach((item: any) => {
       const categoryId = item.category_id;
       const categoryName = item.categories?.name || 'Unknown Category';
-      const amount = Number(item.subtotal);
+      let amount = Number(item.subtotal);
+
+      // Subtract refunded amounts from totals
+      if (item.orders.payment_status === 'REFUNDED') {
+        amount = -amount;
+      }
 
       if (!categorySales[categoryId]) {
         categorySales[categoryId] = {
