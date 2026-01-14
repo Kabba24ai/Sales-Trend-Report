@@ -20,7 +20,7 @@ import {
   Info,
   X
 } from 'lucide-react';
-import { salesApi, SalesDataPoint, TopProduct, SalesFilters } from '../services/salesApi';
+import { salesApi, SalesDataPoint, TopProduct, TopCategory, SalesFilters } from '../services/salesApi';
 
 type ReportType = 'rolling30' | '7day' | 'lastMonth' | 'ytd';
 
@@ -28,7 +28,9 @@ export default function SalesTrendReport() {
   const [reportType, setReportType] = useState<ReportType>('rolling30');
   const [chartData, setChartData] = useState<SalesDataPoint[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [topCategories, setTopCategories] = useState<TopCategory[]>([]);
   const [showTopProducts, setShowTopProducts] = useState(false);
+  const [showTopCategories, setShowTopCategories] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
@@ -113,8 +115,20 @@ export default function SalesTrendReport() {
       const data = await salesApi.getTopProducts(10);
       setTopProducts(data);
       setShowTopProducts(true);
+      setShowTopCategories(false);
     } catch (error) {
       console.error('Error loading top products:', error);
+    }
+  };
+
+  const loadTopCategories = async () => {
+    try {
+      const data = await salesApi.getTopCategories(5);
+      setTopCategories(data);
+      setShowTopCategories(true);
+      setShowTopProducts(false);
+    } catch (error) {
+      console.error('Error loading top categories:', error);
     }
   };
 
@@ -128,6 +142,9 @@ export default function SalesTrendReport() {
 
   const top10Total = topProducts.reduce((sum, p) => sum + p.total_sales, 0);
   const top10Percentage = currentTotal > 0 ? (top10Total / currentTotal) * 100 : 0;
+
+  const top5Total = topCategories.reduce((sum, c) => sum + c.total_sales, 0);
+  const top5Percentage = currentTotal > 0 ? (top5Total / currentTotal) * 100 : 0;
 
   const comparisonChartData = currentPeriodData.map((current, index) => {
     const previous = previousPeriodData[index];
@@ -171,6 +188,7 @@ export default function SalesTrendReport() {
 
   const hideTopProducts = () => {
     setShowTopProducts(false);
+    setShowTopCategories(false);
     setFilters({
       itemType: 'all',
       category: 'all',
@@ -309,7 +327,7 @@ export default function SalesTrendReport() {
           </div>
 
           <div className="flex items-end gap-6 mb-4">
-            <div className="flex-1">
+            <div style={{ width: '40%' }}>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Item Type
               </label>
@@ -366,6 +384,17 @@ export default function SalesTrendReport() {
               }`}
             >
               {showTopProducts ? 'Hide Top 10 Products' : 'Show Top 10 Products'}
+            </button>
+
+            <button
+              onClick={showTopCategories ? hideTopProducts : loadTopCategories}
+              className={`px-5 py-2 text-sm rounded-lg font-medium transition-all whitespace-nowrap ${
+                showTopCategories
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              {showTopCategories ? 'Hide Top 5 Categories' : 'Show Top 5 Categories'}
             </button>
           </div>
 
@@ -496,7 +525,7 @@ export default function SalesTrendReport() {
           </div>
         </div>
 
-        {!showTopProducts ? (
+        {!showTopProducts && !showTopCategories ? (
           <div className="flex gap-4 mb-8 max-w-3xl mx-auto">
             <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-4 text-center flex-1">
               <div className="text-xs font-medium text-slate-600 mb-2">Total Sales</div>
@@ -533,7 +562,7 @@ export default function SalesTrendReport() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : showTopProducts ? (
           <div className="flex gap-4 mb-8 max-w-3xl mx-auto">
             <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-4 text-center flex-1">
               <div className="text-xs font-medium text-slate-600 mb-2">Total Sales</div>
@@ -556,9 +585,32 @@ export default function SalesTrendReport() {
               </div>
             </div>
           </div>
+        ) : (
+          <div className="flex gap-4 mb-8 max-w-3xl mx-auto">
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">Total Sales</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {loading ? '...' : formatCurrency(currentTotal)}
+              </div>
+            </div>
+
+            <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">Top 5 Sales</div>
+              <div className="text-2xl font-bold text-green-600">
+                {loading ? '...' : formatCurrency(top5Total)}
+              </div>
+            </div>
+
+            <div className="bg-teal-50 border border-teal-100 rounded-2xl px-4 py-4 text-center flex-1">
+              <div className="text-xs font-medium text-slate-600 mb-2">% Total Sales</div>
+              <div className="text-2xl font-bold text-teal-600">
+                {loading ? '...' : `${top5Percentage.toFixed(1)}%`}
+              </div>
+            </div>
+          </div>
         )}
 
-        {!showTopProducts ? (
+        {!showTopProducts && !showTopCategories ? (
           <div>
             <h2 className="text-base font-semibold text-slate-900 mb-4">Sales Trend</h2>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
@@ -622,7 +674,7 @@ export default function SalesTrendReport() {
               )}
             </div>
           </div>
-        ) : (
+        ) : showTopProducts ? (
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-slate-900">Top 10 Products</h2>
@@ -662,6 +714,58 @@ export default function SalesTrendReport() {
                   <Bar
                     dataKey="total_sales"
                     fill="#3b82f6"
+                    name="Total Sales"
+                    radius={[4, 4, 0, 0]}
+                    label={{
+                      position: 'top',
+                      formatter: (value: number) => formatCurrency(value),
+                      style: { fontSize: '11px', fontWeight: '600', fill: '#1e293b' }
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-slate-900">Top 5 Categories</h2>
+              <button
+                onClick={() => setShowTopCategories(false)}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Back to Trend
+              </button>
+            </div>
+            <div className="bg-white rounded-lg border border-slate-200 p-6">
+              <ResponsiveContainer width="100%" height={450}>
+                <BarChart data={topCategories}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={120}
+                    stroke="#94a3b8"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => `$${value.toLocaleString()}`}
+                    stroke="#94a3b8"
+                    style={{ fontSize: '12px' }}
+                  />
+                  <Tooltip
+                    formatter={(value: any) => formatCurrency(value)}
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }}
+                  />
+                  <Bar
+                    dataKey="total_sales"
+                    fill="#10b981"
                     name="Total Sales"
                     radius={[4, 4, 0, 0]}
                     label={{

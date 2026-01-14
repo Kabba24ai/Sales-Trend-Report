@@ -13,6 +13,13 @@ export interface TopProduct {
   order_count: number;
 }
 
+export interface TopCategory {
+  id: string;
+  name: string;
+  total_sales: number;
+  order_count: number;
+}
+
 export interface SalesFilters {
   itemType?: 'all' | 'rental' | 'retail';
   category?: string;
@@ -389,6 +396,58 @@ export const salesApi = {
     });
 
     const result: TopProduct[] = Object.entries(productSales)
+      .map(([id, data]) => ({
+        id,
+        name: data.name,
+        total_sales: data.total,
+        order_count: data.orders.size
+      }))
+      .sort((a, b) => b.total_sales - a.total_sales)
+      .slice(0, limit);
+
+    return result;
+  },
+
+  async getTopCategories(limit: number = 5): Promise<TopCategory[]> {
+    const { data, error } = await supabase
+      .from('order_items')
+      .select(`
+        category_id,
+        subtotal,
+        order_id,
+        categories(name),
+        orders!inner(
+          payment_status,
+          payment_date
+        )
+      `)
+      .eq('orders.payment_status', 'PAID')
+      .neq('item_type', 'damage_waiver')
+      .neq('item_type', 'thrown_track_insurance')
+      .not('category_id', 'is', null);
+
+    if (error) throw error;
+
+    const categorySales: Record<string, { name: string; total: number; orders: Set<string> }> = {};
+
+    data?.forEach((item: any) => {
+      const categoryId = item.category_id;
+      const categoryName = item.categories?.name || 'Unknown Category';
+      const amount = Number(item.subtotal);
+
+      if (!categorySales[categoryId]) {
+        categorySales[categoryId] = {
+          name: categoryName,
+          total: 0,
+          orders: new Set()
+        };
+      }
+
+      categorySales[categoryId].total += amount;
+      categorySales[categoryId].orders.add(item.order_id);
+    });
+
+    const result: TopCategory[] = Object.entries(categorySales)
       .map(([id, data]) => ({
         id,
         name: data.name,
