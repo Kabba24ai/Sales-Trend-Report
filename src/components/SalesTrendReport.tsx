@@ -166,6 +166,22 @@ export default function SalesTrendReport() {
     });
   };
 
+  const hideTopProducts = () => {
+    setShowTopProducts(false);
+    setFilters({
+      itemType: 'all',
+      category: 'all',
+      product: 'all',
+      excludeWaiver: false,
+      waiverOnly: false,
+      excludeInsurance: false,
+      insuranceOnly: false,
+      excludeShipping: false,
+      excludeDelivery: false,
+      deliveryOnly: false
+    });
+  };
+
   const getReportDescription = () => {
     switch (reportType) {
       case 'rolling30':
@@ -339,7 +355,7 @@ export default function SalesTrendReport() {
             </div>
 
             <button
-              onClick={loadTopProducts}
+              onClick={showTopProducts ? hideTopProducts : loadTopProducts}
               className={`px-5 py-2 text-sm rounded-lg font-medium transition-all whitespace-nowrap ${
                 showTopProducts
                   ? 'bg-blue-600 text-white'
