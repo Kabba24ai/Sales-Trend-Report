@@ -12,7 +12,7 @@ interface DateFilterProps {
 }
 
 const dateRangeOptions = [
-  { value: 'rolling_30', label: '30 Day Rolling (default)' },
+  { value: 'rolling_30', label: '30 Day Rolling' },
   { value: 'this_month', label: 'This Month' },
   { value: 'last_month', label: 'Last Month' },
   { value: 'this_year', label: 'This Year' },
@@ -45,7 +45,7 @@ export default function DateFilter({
   const selectedOption = dateRangeOptions.find(opt => opt.value === dateRange);
 
   return (
-    <div className="flex items-end gap-4">
+    <>
       <div style={{ width: '180px', flexShrink: 0 }} ref={dropdownRef}>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
           <Calendar size={16} />
@@ -110,6 +110,6 @@ export default function DateFilter({
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }

@@ -275,7 +275,7 @@ export default function PureSalesReport() {
             </button>
           </div>
 
-          <div className="mb-4">
+          <div className="flex items-end gap-4 mb-4">
             <DateFilter
               dateRange={filters.dateRange || 'rolling_30'}
               startDate={filters.startDate}
@@ -284,9 +284,7 @@ export default function PureSalesReport() {
               onStartDateChange={(date) => setFilters({ ...filters, startDate: date })}
               onEndDateChange={(date) => setFilters({ ...filters, endDate: date })}
             />
-          </div>
 
-          <div className="flex items-end gap-6 mb-4">
             <div style={{ width: '115px', flexShrink: 0 }}>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Store
@@ -303,7 +301,7 @@ export default function PureSalesReport() {
               </select>
             </div>
 
-            <div style={{ width: '115px', flexShrink: 0 }}>
+            <div style={{ width: '120px', flexShrink: 0 }}>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Item Type
               </label>
@@ -318,7 +316,7 @@ export default function PureSalesReport() {
               </select>
             </div>
 
-            <div className="flex-1">
+            <div style={{ width: '200px', flexShrink: 0 }}>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Category
               </label>
@@ -334,7 +332,7 @@ export default function PureSalesReport() {
               </select>
             </div>
 
-            <div className="flex-1">
+            <div style={{ width: '200px', flexShrink: 0 }}>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Product
               </label>
