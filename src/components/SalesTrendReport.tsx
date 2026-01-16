@@ -423,27 +423,26 @@ export default function SalesTrendReport() {
               </select>
             </div>
 
-            <button
-              onClick={showTopProducts ? hideTopProducts : loadTopProducts}
-              className={`px-5 py-2 text-sm rounded-lg font-medium transition-all whitespace-nowrap ${
-                showTopProducts
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              {showTopProducts ? 'Hide Top 10 Products' : 'Show Top 10 Products'}
-            </button>
-
-            <button
-              onClick={showTopCategories ? hideTopProducts : loadTopCategories}
-              className={`px-5 py-2 text-sm rounded-lg font-medium transition-all whitespace-nowrap ${
-                showTopCategories
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              {showTopCategories ? 'Hide Top 5 Categories' : 'Show Top 5 Categories'}
-            </button>
+            <div style={{ width: '200px', flexShrink: 0 }}>
+              <select
+                value={showTopProducts ? 'products' : showTopCategories ? 'categories' : 'none'}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === 'products') {
+                    loadTopProducts();
+                  } else if (value === 'categories') {
+                    loadTopCategories();
+                  } else {
+                    hideTopProducts();
+                  }
+                }}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="none">Select View...</option>
+                <option value="products">Top 10 Products</option>
+                <option value="categories">Top 5 Categories</option>
+              </select>
+            </div>
           </div>
 
           <div className="flex items-center gap-6 flex-wrap">
