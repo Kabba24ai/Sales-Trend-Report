@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import SalesTrendReport from './components/SalesTrendReport';
 import PureSalesReport from './components/PureSalesReport';
-import { TrendingUp, ShoppingCart } from 'lucide-react';
+import ProductPerformance from './components/ProductPerformance';
+import { TrendingUp, ShoppingCart, BarChart3 } from 'lucide-react';
 
-type ReportView = 'trend' | 'sales';
+type ReportView = 'trend' | 'sales' | 'performance';
 
 function App() {
   const [currentView, setCurrentView] = useState<ReportView>('sales');
@@ -25,6 +26,17 @@ function App() {
               Pure Sales Report
             </button>
             <button
+              onClick={() => setCurrentView('performance')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                currentView === 'performance'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-transparent text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <BarChart3 size={18} />
+              Product Performance
+            </button>
+            <button
               onClick={() => setCurrentView('trend')}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
                 currentView === 'trend'
@@ -39,7 +51,9 @@ function App() {
         </div>
       </div>
 
-      {currentView === 'sales' ? <PureSalesReport /> : <SalesTrendReport />}
+      {currentView === 'sales' && <PureSalesReport />}
+      {currentView === 'performance' && <ProductPerformance />}
+      {currentView === 'trend' && <SalesTrendReport />}
     </div>
   );
 }
