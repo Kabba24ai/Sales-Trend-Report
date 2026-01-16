@@ -438,7 +438,7 @@ export default function SalesTrendReport() {
                 }}
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
-                <option value="none">Select View...</option>
+                <option value="none">Select List...</option>
                 <option value="products">Top 10 Products</option>
                 <option value="categories">Top 5 Categories</option>
               </select>
