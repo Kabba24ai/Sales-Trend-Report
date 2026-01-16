@@ -16,6 +16,7 @@ import {
   SalesFilters,
   ProductSalesDetail
 } from '../services/salesApi';
+import DateFilter from './DateFilter';
 
 export default function ProductPerformance() {
   const [loading, setLoading] = useState(true);
@@ -37,7 +38,10 @@ export default function ProductPerformance() {
     insuranceOnly: false,
     excludeShipping: false,
     excludeDelivery: false,
-    deliveryOnly: false
+    deliveryOnly: false,
+    dateRange: 'all',
+    startDate: '',
+    endDate: ''
   });
 
   useEffect(() => {
@@ -179,12 +183,26 @@ export default function ProductPerformance() {
                 insuranceOnly: false,
                 excludeShipping: false,
                 excludeDelivery: false,
-                deliveryOnly: false
+                deliveryOnly: false,
+                dateRange: 'all',
+                startDate: '',
+                endDate: ''
               })}
               className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors"
             >
               Clear Filters
             </button>
+          </div>
+
+          <div className="mb-4">
+            <DateFilter
+              dateRange={filters.dateRange || 'all'}
+              startDate={filters.startDate}
+              endDate={filters.endDate}
+              onDateRangeChange={(range) => setFilters({ ...filters, dateRange: range })}
+              onStartDateChange={(date) => setFilters({ ...filters, startDate: date })}
+              onEndDateChange={(date) => setFilters({ ...filters, endDate: date })}
+            />
           </div>
 
           <div className="flex items-end gap-6 mb-4">

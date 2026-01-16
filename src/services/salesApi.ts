@@ -20,6 +20,8 @@ export interface TopCategory {
   order_count: number;
 }
 
+export type DateRangeOption = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'custom';
+
 export interface SalesFilters {
   store?: string;
   itemType?: 'all' | 'rental' | 'retail';
@@ -32,6 +34,9 @@ export interface SalesFilters {
   excludeShipping?: boolean;
   excludeDelivery?: boolean;
   deliveryOnly?: boolean;
+  dateRange?: DateRangeOption;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface SalesSummary {
@@ -94,6 +99,106 @@ export interface ProductSalesDetail {
   refundAmount: number;
   netQuantitySold: number;
   taxCollected: number;
+}
+
+function getDateRangeFromOption(option: DateRangeOption): { startDate: string; endDate: string } | null {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (option) {
+    case 'all':
+      return null;
+
+    case 'today': {
+      const start = new Date(today);
+      const end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
+
+    case 'yesterday': {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 1);
+      const end = new Date(today);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
+
+    case 'this_week': {
+      const start = new Date(today);
+      const dayOfWeek = start.getDay();
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      start.setDate(start.getDate() + diff);
+      const end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
+
+    case 'last_week': {
+      const start = new Date(today);
+      const dayOfWeek = start.getDay();
+      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      start.setDate(start.getDate() + diff - 7);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
+
+    case 'this_month': {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
+
+    case 'last_month': {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 1);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
+
+    case 'this_year': {
+      const start = new Date(now.getFullYear(), 0, 1);
+      const end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
+
+    case 'last_year': {
+      const start = new Date(now.getFullYear() - 1, 0, 1);
+      const end = new Date(now.getFullYear(), 0, 1);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
+
+    case 'custom':
+      return null;
+
+    default:
+      return null;
+  }
 }
 
 export const salesApi = {
@@ -1047,6 +1152,24 @@ export const salesApi = {
 
     if (filters.deliveryOnly) {
       query = query.eq('item_type', 'delivery');
+    }
+
+    if (filters.dateRange && filters.dateRange !== 'all') {
+      let dateRange: { startDate: string; endDate: string } | null = null;
+
+      if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+        dateRange = {
+          startDate: filters.startDate,
+          endDate: filters.endDate
+        };
+      } else {
+        dateRange = getDateRangeFromOption(filters.dateRange);
+      }
+
+      if (dateRange) {
+        query = query.gte('orders.payment_date', dateRange.startDate);
+        query = query.lt('orders.payment_date', dateRange.endDate);
+      }
     }
 
     return query;
