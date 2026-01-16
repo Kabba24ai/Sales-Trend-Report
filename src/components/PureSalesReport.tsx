@@ -12,6 +12,16 @@ import {
   ArrowDown
 } from 'lucide-react';
 import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
+import {
   salesApi,
   SalesFilters,
   SalesSummary,
@@ -919,49 +929,165 @@ export default function PureSalesReport() {
         </div>
 
         <div className="mb-8">
-          <h2 className="text-base font-semibold text-slate-900 mb-4">Product Performance Lists</h2>
+          <h2 className="text-base font-semibold text-slate-900 mb-4">Product Performance</h2>
 
           <div className="grid grid-cols-2 gap-6">
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="text-sm font-semibold text-green-700 mb-4">Top 10 Best Sellers (by Quantity)</h3>
-              <div className="space-y-2">
-                {loading ? (
-                  <div className="text-center text-slate-400 py-4">Loading...</div>
-                ) : (
-                  getTopProducts(10).map((product, idx) => (
-                    <div key={product.productId} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-slate-400 w-6">#{idx + 1}</span>
-                        <span className="text-sm text-slate-700">{product.productName}</span>
-                      </div>
-                      <span className="text-sm font-medium text-slate-900">
-                        {formatNumber(product.quantitySold)} units
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
+              <h3 className="text-sm font-semibold text-green-700 mb-4">Top 10 Best Sellers (Quantity vs Revenue)</h3>
+              {loading ? (
+                <div className="h-96 flex items-center justify-center">
+                  <div className="text-slate-400">Loading chart data...</div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart
+                    data={getTopProducts(10).map(p => ({
+                      name: p.productName.length > 20 ? p.productName.substring(0, 20) + '...' : p.productName,
+                      quantity: p.quantitySold,
+                      revenue: p.netSales
+                    }))}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-45}
+                      textAnchor="end"
+                      height={100}
+                      stroke="#94a3b8"
+                      style={{ fontSize: '11px' }}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      orientation="left"
+                      stroke="#10b981"
+                      style={{ fontSize: '12px' }}
+                      label={{ value: 'Quantity', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#10b981' } }}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      stroke="#3b82f6"
+                      tickFormatter={(value) => `$${value.toLocaleString()}`}
+                      style={{ fontSize: '12px' }}
+                      label={{ value: 'Revenue ($)', angle: 90, position: 'insideRight', style: { fontSize: '12px', fill: '#3b82f6' } }}
+                    />
+                    <Tooltip
+                      formatter={(value: any, name: string) => {
+                        if (name === 'revenue') return [formatCurrency(value), 'Revenue'];
+                        return [formatNumber(value) + ' units', 'Quantity'];
+                      }}
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Legend
+                      wrapperStyle={{ fontSize: '12px' }}
+                      formatter={(value) => {
+                        if (value === 'quantity') return 'Quantity Sold';
+                        if (value === 'revenue') return 'Net Revenue';
+                        return value;
+                      }}
+                    />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="quantity"
+                      fill="#10b981"
+                      name="quantity"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      yAxisId="right"
+                      dataKey="revenue"
+                      fill="#3b82f6"
+                      name="revenue"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
             <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h3 className="text-sm font-semibold text-blue-700 mb-4">Top 10 Highest Revenue (by Net Sales)</h3>
-              <div className="space-y-2">
-                {loading ? (
-                  <div className="text-center text-slate-400 py-4">Loading...</div>
-                ) : (
-                  getTopProducts(10).map((product, idx) => (
-                    <div key={product.productId} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-slate-400 w-6">#{idx + 1}</span>
-                        <span className="text-sm text-slate-700">{product.productName}</span>
-                      </div>
-                      <span className="text-sm font-medium text-green-600">
-                        {formatCurrency(product.netSales)}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
+              <h3 className="text-sm font-semibold text-orange-700 mb-4">Bottom 10 Slow Movers (Quantity vs Revenue)</h3>
+              {loading ? (
+                <div className="h-96 flex items-center justify-center">
+                  <div className="text-slate-400">Loading chart data...</div>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart
+                    data={getBottomProducts(10).map(p => ({
+                      name: p.productName.length > 20 ? p.productName.substring(0, 20) + '...' : p.productName,
+                      quantity: p.quantitySold,
+                      revenue: p.netSales
+                    }))}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-45}
+                      textAnchor="end"
+                      height={100}
+                      stroke="#94a3b8"
+                      style={{ fontSize: '11px' }}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      orientation="left"
+                      stroke="#f97316"
+                      style={{ fontSize: '12px' }}
+                      label={{ value: 'Quantity', angle: -90, position: 'insideLeft', style: { fontSize: '12px', fill: '#f97316' } }}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      stroke="#ef4444"
+                      tickFormatter={(value) => `$${value.toLocaleString()}`}
+                      style={{ fontSize: '12px' }}
+                      label={{ value: 'Revenue ($)', angle: 90, position: 'insideRight', style: { fontSize: '12px', fill: '#ef4444' } }}
+                    />
+                    <Tooltip
+                      formatter={(value: any, name: string) => {
+                        if (name === 'revenue') return [formatCurrency(value), 'Revenue'];
+                        return [formatNumber(value) + ' units', 'Quantity'];
+                      }}
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Legend
+                      wrapperStyle={{ fontSize: '12px' }}
+                      formatter={(value) => {
+                        if (value === 'quantity') return 'Quantity Sold';
+                        if (value === 'revenue') return 'Net Revenue';
+                        return value;
+                      }}
+                    />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="quantity"
+                      fill="#f97316"
+                      name="quantity"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      yAxisId="right"
+                      dataKey="revenue"
+                      fill="#ef4444"
+                      name="revenue"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </div>
