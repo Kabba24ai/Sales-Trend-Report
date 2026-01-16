@@ -20,7 +20,7 @@ export interface TopCategory {
   order_count: number;
 }
 
-export type DateRangeOption = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'custom';
+export type DateRangeOption = 'all' | 'rolling_30' | 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'custom';
 
 export interface SalesFilters {
   store?: string;
@@ -108,6 +108,17 @@ function getDateRangeFromOption(option: DateRangeOption): { startDate: string; e
   switch (option) {
     case 'all':
       return null;
+
+    case 'rolling_30': {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 30);
+      const end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      };
+    }
 
     case 'today': {
       const start = new Date(today);

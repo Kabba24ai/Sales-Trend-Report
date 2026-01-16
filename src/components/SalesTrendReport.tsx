@@ -50,7 +50,7 @@ export default function SalesTrendReport() {
     excludeShipping: false,
     excludeDelivery: false,
     deliveryOnly: false,
-    dateRange: 'all',
+    dateRange: 'rolling_30',
     startDate: '',
     endDate: ''
   });
@@ -339,7 +339,7 @@ export default function SalesTrendReport() {
                 excludeShipping: false,
                 excludeDelivery: false,
                 deliveryOnly: false,
-                dateRange: 'all',
+                dateRange: 'rolling_30',
                 startDate: '',
                 endDate: ''
               })}
@@ -351,7 +351,7 @@ export default function SalesTrendReport() {
 
           <div className="mb-4">
             <DateFilter
-              dateRange={filters.dateRange || 'all'}
+              dateRange={filters.dateRange || 'rolling_30'}
               startDate={filters.startDate}
               endDate={filters.endDate}
               onDateRangeChange={(range) => setFilters({ ...filters, dateRange: range })}

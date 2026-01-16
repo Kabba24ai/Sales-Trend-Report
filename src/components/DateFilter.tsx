@@ -12,11 +12,7 @@ interface DateFilterProps {
 }
 
 const dateRangeOptions = [
-  { value: 'all', label: 'All Time' },
-  { value: 'today', label: 'Today' },
-  { value: 'yesterday', label: 'Yesterday' },
-  { value: 'this_week', label: 'This Week' },
-  { value: 'last_week', label: 'Last Week' },
+  { value: 'rolling_30', label: '30 Day Rolling (default)' },
   { value: 'this_month', label: 'This Month' },
   { value: 'last_month', label: 'Last Month' },
   { value: 'this_year', label: 'This Year' },
