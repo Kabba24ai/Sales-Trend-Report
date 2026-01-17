@@ -473,7 +473,7 @@ export default function GraphicalSalesReport() {
           </div>
         </div>
 
-        <div className="flex gap-4 mb-8">
+        <div className="flex gap-4 mb-8 max-w-3xl mx-auto">
           <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-4 text-center flex-1">
             <div className="text-xs font-medium text-slate-600 mb-2">Total Net Sales</div>
             <div className="text-2xl font-bold text-blue-600">
