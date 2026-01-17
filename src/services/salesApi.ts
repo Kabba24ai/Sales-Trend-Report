@@ -99,6 +99,10 @@ export interface ProductSalesDetail {
   refundAmount: number;
   netQuantitySold: number;
   taxCollected: number;
+  itemType: 'rental' | 'retail';
+  rentalTransactionCount?: number;
+  rentalUsageQuantity?: number;
+  netRentalUsageQuantity?: number;
 }
 
 function getDateRangeFromOption(option: DateRangeOption): { startDate: string; endDate: string } | null {
@@ -1040,6 +1044,7 @@ export const salesApi = {
         discount_amount,
         sales_tax,
         item_type,
+        rental_type,
         products(name),
         orders!inner(
           payment_status,
@@ -1056,8 +1061,19 @@ export const salesApi = {
     const { data, error } = await query;
     if (error) throw error;
 
+    const getRentalMultiplier = (rentalType: string | null): number => {
+      switch (rentalType) {
+        case 'daily': return 1;
+        case 'weekend': return 2.5;
+        case 'weekly': return 7;
+        case 'monthly': return 28;
+        default: return 0;
+      }
+    };
+
     const productMap = new Map<string, {
       name: string;
+      itemType: 'rental' | 'retail';
       quantitySold: number;
       grossSales: number;
       discountAmount: number;
@@ -1066,20 +1082,28 @@ export const salesApi = {
       refundAmount: number;
       taxCollected: number;
       salesCount: number;
+      rentalTransactionCount?: number;
+      rentalUsageQuantity?: number;
+      refundRentalUsageQuantity?: number;
     }>();
 
     data?.forEach((item: any) => {
       const productId = item.product_id;
       const productName = item.products?.name || 'Unknown';
+      const itemType = item.item_type;
       const quantity = Number(item.quantity || 0);
       const gross = Number(item.gross_sales || item.subtotal);
       const discount = Number(item.discount_amount || 0);
       const net = Number(item.subtotal);
       const tax = Number(item.sales_tax || 0);
 
+      const rentalMultiplier = getRentalMultiplier(item.rental_type);
+      const rentalUsage = quantity * rentalMultiplier;
+
       if (!productMap.has(productId)) {
         productMap.set(productId, {
           name: productName,
+          itemType: itemType === 'rental' ? 'rental' : 'retail',
           quantitySold: 0,
           grossSales: 0,
           discountAmount: 0,
@@ -1087,7 +1111,10 @@ export const salesApi = {
           refundQuantity: 0,
           refundAmount: 0,
           taxCollected: 0,
-          salesCount: 0
+          salesCount: 0,
+          rentalTransactionCount: itemType === 'rental' ? 0 : undefined,
+          rentalUsageQuantity: itemType === 'rental' ? 0 : undefined,
+          refundRentalUsageQuantity: itemType === 'rental' ? 0 : undefined
         });
       }
 
@@ -1100,9 +1127,18 @@ export const salesApi = {
         product.netSales += net;
         product.taxCollected += tax;
         product.salesCount++;
+
+        if (itemType === 'rental') {
+          product.rentalTransactionCount = (product.rentalTransactionCount || 0) + 1;
+          product.rentalUsageQuantity = (product.rentalUsageQuantity || 0) + rentalUsage;
+        }
       } else if (item.orders.payment_status === 'REFUNDED') {
         product.refundQuantity += quantity;
         product.refundAmount += net;
+
+        if (itemType === 'rental') {
+          product.refundRentalUsageQuantity = (product.refundRentalUsageQuantity || 0) + rentalUsage;
+        }
       }
     });
 
@@ -1110,6 +1146,7 @@ export const salesApi = {
       productId,
       productName: data.name,
       sku: productId.substring(0, 8).toUpperCase(),
+      itemType: data.itemType,
       quantitySold: data.quantitySold,
       grossSales: data.grossSales,
       discountAmount: data.discountAmount,
@@ -1118,7 +1155,12 @@ export const salesApi = {
       refundQuantity: data.refundQuantity,
       refundAmount: data.refundAmount,
       netQuantitySold: data.quantitySold - data.refundQuantity,
-      taxCollected: data.taxCollected
+      taxCollected: data.taxCollected,
+      rentalTransactionCount: data.rentalTransactionCount,
+      rentalUsageQuantity: data.rentalUsageQuantity,
+      netRentalUsageQuantity: data.rentalUsageQuantity !== undefined
+        ? (data.rentalUsageQuantity || 0) - (data.refundRentalUsageQuantity || 0)
+        : undefined
     }));
   },
 
