@@ -115,7 +115,7 @@ function getDateRangeFromOption(option: DateRangeOption): { startDate: string; e
 
     case 'rolling_30': {
       const start = new Date(today);
-      start.setDate(start.getDate() - 30);
+      start.setDate(start.getDate() - 29);
       const end = new Date(today);
       end.setDate(end.getDate() + 1);
       return {
@@ -220,9 +220,9 @@ export const salesApi = {
   async getRolling30Days(filters: SalesFilters = {}): Promise<SalesDataPoint[]> {
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 30);
+    thirtyDaysAgo.setDate(today.getDate() - 29);
     const sixtyDaysAgo = new Date(today);
-    sixtyDaysAgo.setDate(today.getDate() - 60);
+    sixtyDaysAgo.setDate(today.getDate() - 59);
 
     let query = supabase
       .from('order_items')
@@ -306,7 +306,7 @@ export const salesApi = {
 
     const result: SalesDataPoint[] = [];
 
-    for (let i = 60; i >= 1; i--) {
+    for (let i = 59; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
@@ -314,7 +314,7 @@ export const salesApi = {
       result.push({
         date: dateStr,
         sales: salesByDate[dateStr] || 0,
-        period: i <= 30 ? 'current' : 'previous'
+        period: i <= 29 ? 'current' : 'previous'
       });
     }
 
@@ -464,9 +464,9 @@ export const salesApi = {
   async get7DayComparison(filters: SalesFilters = {}): Promise<SalesDataPoint[]> {
     const today = new Date();
     const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(today.getDate() - 7);
+    sevenDaysAgo.setDate(today.getDate() - 6);
     const fourteenDaysAgo = new Date(today);
-    fourteenDaysAgo.setDate(today.getDate() - 14);
+    fourteenDaysAgo.setDate(today.getDate() - 13);
 
     let query = supabase
       .from('order_items')
@@ -555,7 +555,7 @@ export const salesApi = {
 
     const result: SalesDataPoint[] = [];
 
-    for (let i = 14; i >= 1; i--) {
+    for (let i = 13; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
@@ -563,7 +563,7 @@ export const salesApi = {
       result.push({
         date: dateStr,
         sales: salesByDate[dateStr] || 0,
-        period: i <= 7 ? 'current' : 'previous'
+        period: i <= 6 ? 'current' : 'previous'
       });
     }
 
