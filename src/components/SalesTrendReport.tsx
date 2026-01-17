@@ -287,39 +287,6 @@ export default function SalesTrendReport() {
           </div>
         )}
 
-        <div className="mb-6 flex gap-3">
-          <button
-            onClick={() => setReportType('rolling30')}
-            className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              reportType === 'rolling30'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            Rolling 30 Days
-          </button>
-          <button
-            onClick={() => setReportType('7day')}
-            className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              reportType === '7day'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            Current Month
-          </button>
-          <button
-            onClick={() => setReportType('lastMonth')}
-            className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              reportType === 'lastMonth'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            Last Month
-          </button>
-        </div>
-
         <div className="mb-6 bg-white rounded-lg border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
