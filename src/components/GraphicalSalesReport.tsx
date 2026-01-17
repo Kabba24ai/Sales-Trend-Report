@@ -48,7 +48,10 @@ export default function GraphicalSalesReport() {
   const [dailySales, setDailySales] = useState<DailySalesData[]>([]);
   const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdownData[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [topCategories, setTopCategories] = useState<any[]>([]);
   const [salesSummary, setSalesSummary] = useState<any>(null);
+  const [showTopProducts, setShowTopProducts] = useState(false);
+  const [showTopCategories, setShowTopCategories] = useState(false);
 
   const [filters, setFilters] = useState<SalesFilters>({
     store: 'all',
@@ -110,6 +113,33 @@ export default function GraphicalSalesReport() {
     } catch (error) {
       console.error('Error loading products:', error);
     }
+  };
+
+  const loadTopProducts = async () => {
+    try {
+      const data = await salesApi.getTopProducts(10);
+      setTopProducts(data);
+      setShowTopProducts(true);
+      setShowTopCategories(false);
+    } catch (error) {
+      console.error('Error loading top products:', error);
+    }
+  };
+
+  const loadTopCategories = async () => {
+    try {
+      const data = await salesApi.getTopCategories(5);
+      setTopCategories(data);
+      setShowTopCategories(true);
+      setShowTopProducts(false);
+    } catch (error) {
+      console.error('Error loading top categories:', error);
+    }
+  };
+
+  const hideTopLists = () => {
+    setShowTopProducts(false);
+    setShowTopCategories(false);
   };
 
   const loadData = async () => {
@@ -318,6 +348,27 @@ export default function GraphicalSalesReport() {
                 {products.map(prod => (
                   <option key={prod.id} value={prod.id}>{prod.name}</option>
                 ))}
+              </select>
+            </div>
+
+            <div style={{ width: '200px', flexShrink: 0 }}>
+              <select
+                value={showTopProducts ? 'products' : showTopCategories ? 'categories' : 'none'}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === 'products') {
+                    loadTopProducts();
+                  } else if (value === 'categories') {
+                    loadTopCategories();
+                  } else {
+                    hideTopLists();
+                  }
+                }}
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="none">Select List...</option>
+                <option value="products">Top 10 Products</option>
+                <option value="categories">Top 5 Categories</option>
               </select>
             </div>
           </div>
@@ -595,7 +646,9 @@ export default function GraphicalSalesReport() {
           </div>
 
           <div>
-            <h2 className="text-base font-semibold text-slate-900 mb-4">Top 10 Products</h2>
+            <h2 className="text-base font-semibold text-slate-900 mb-4">
+              {showTopCategories ? 'Top 5 Categories' : 'Top 10 Products'}
+            </h2>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
               {loading ? (
                 <div className="h-80 flex items-center justify-center">
@@ -603,7 +656,10 @@ export default function GraphicalSalesReport() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={topProducts} layout="vertical">
+                  <BarChart
+                    data={showTopCategories ? topCategories : topProducts}
+                    layout="vertical"
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis
                       type="number"
@@ -629,7 +685,7 @@ export default function GraphicalSalesReport() {
                     />
                     <Bar
                       dataKey="total_sales"
-                      fill="#3b82f6"
+                      fill={showTopCategories ? '#10b981' : '#3b82f6'}
                       name="Total Sales"
                       radius={[0, 4, 4, 0]}
                     />
