@@ -504,7 +504,7 @@ export default function GraphicalSalesReport() {
         </div>
 
         <div className="mb-6">
-          <h2 className="text-base font-semibold text-slate-900 mb-4">Daily Sales Trend</h2>
+          <h2 className="text-base font-semibold text-slate-900 mb-4">Daily Sales</h2>
           <div className="bg-white rounded-lg border border-slate-200 p-6">
             {loading ? (
               <div className="h-96 flex items-center justify-center">
