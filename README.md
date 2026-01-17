@@ -407,30 +407,109 @@ Resets all filters to default state:
 
 ---
 
-## Report Types & Date Logic
+## Date Filter Definitions
 
-### 1. Rolling 30 Days
+### Date Range Filter Options
+
+The application provides several date range options for filtering sales data. Each option has specific behavior for determining the date range:
+
+#### 1. 30 Day Rolling
+Shows data for the last 30 days, **including today**.
+
+**Example:** If today is Jan 17, this includes **Dec 19 – Jan 17** (30 days total)
+
+**Implementation:**
+- Start Date: Today minus 29 days
+- End Date: Today (inclusive)
+- **Note:** This is exactly 30 days including today
+
+#### 2. This Month
+Shows data from the 1st day of the current month through today.
+
+**Example:** If today is Jan 17, this includes **Jan 1 – Jan 17**
+
+**Implementation:**
+- Start Date: First day of current month
+- End Date: Today (inclusive)
+
+#### 3. Last Month
+Shows data for the entire previous calendar month.
+
+**Example:** If today is Jan 17, this includes **Dec 1 – Dec 31**
+
+**Implementation:**
+- Start Date: First day of previous month
+- End Date: Last day of previous month
+- **CRITICAL:** Must handle variable month lengths (28, 29, 30, 31 days)
+
+#### 4. This Year
+Shows data from January 1st of the current year through today.
+
+**Example:** If today is Jan 17, 2026, this includes **Jan 1, 2026 – Jan 17, 2026**
+
+**Implementation:**
+- Start Date: January 1st of current year
+- End Date: Today (inclusive)
+
+#### 5. Last Year
+Shows data for the entire previous calendar year.
+
+**Example:** If today is Jan 17, 2026, this includes **Jan 1, 2025 – Dec 31, 2025**
+
+**Implementation:**
+- Start Date: January 1st of previous year
+- End Date: December 31st of previous year
+- **Note:** Always a complete 365 or 366 day period (leap years)
+
+#### 6. Custom Range
+Lets you choose an exact start date and end date manually.
+
+**Example:** Jan 5 – Jan 12
+
+**Implementation:**
+- Start Date: User-selected start date
+- End Date: User-selected end date
+- Both dates are inclusive
+
+### Important Note About Demo Data
+
+**Demo Data Dates:** The demo data in the database has fixed `payment_date` values. When you change date filters, the SQL queries correctly filter the data based on the selected date range, but you may not see visible changes in the charts if the demo data doesn't have transactions within the selected date range.
+
+**For Production Use:** When using real transaction data with current dates, the date filters will work as expected and you'll see data changes when switching between date ranges.
+
+**Testing Date Filters:** To test date filters with demo data, you can either:
+1. Insert demo data with recent `payment_date` values that fall within your desired date ranges
+2. Use the Custom Range option to select dates that match your existing demo data dates
+3. Check the database to see what date ranges have transaction data
+
+---
+
+## Report Types & Date Logic (Charts)
+
+The dashboard provides three different chart views with period-over-period comparison:
+
+### 1. Rolling 30 Days Chart
 - **Current Period**: Last 30 days (including today)
 - **Previous Period**: 30 days before that (days 31-60)
-- **Example** (Today = Jan 15, 2024):
-  - Current: Dec 16, 2023 - Jan 15, 2024
-  - Previous: Nov 16, 2023 - Dec 15, 2023
+- **Example** (Today = Jan 17, 2024):
+  - Current: Dec 19, 2023 - Jan 17, 2024 (30 days)
+  - Previous: Nov 19, 2023 - Dec 18, 2023 (30 days)
 
-### 2. Current Month (Labeled "Current Month" but actually 7-day comparison)
+### 2. 7-Day Comparison Chart
 - **Current Period**: Last 7 days (including today)
 - **Previous Period**: 7 days before that (days 8-14)
-- **Example** (Today = Jan 15, 2024):
-  - Current: Jan 9, 2024 - Jan 15, 2024
-  - Previous: Jan 2, 2024 - Jan 8, 2024
+- **Example** (Today = Jan 17, 2024):
+  - Current: Jan 11, 2024 - Jan 17, 2024 (7 days)
+  - Previous: Jan 4, 2024 - Jan 10, 2024 (7 days)
 
-### 3. Last Month
+### 3. Last Month Chart
 - **Current Period**: Previous complete calendar month
 - **Previous Period**: Month before that
-- **Example** (Today = Jan 15, 2024):
+- **Example** (Today = Jan 17, 2024):
   - Current: December 2023 (Dec 1 - Dec 31)
   - Previous: November 2023 (Nov 1 - Nov 30)
 - **Example** (Today = March 5, 2024):
-  - Current: February 2024 (Feb 1 - Feb 29)
+  - Current: February 2024 (Feb 1 - Feb 29, leap year)
   - Previous: January 2024 (Jan 1 - Jan 31)
 
 **CRITICAL**: Must handle variable month lengths correctly (28, 29, 30, 31 days)
@@ -1062,11 +1141,12 @@ Access your Supabase project dashboard to:
 
 ---
 
-**Document Version**: 2.1
-**Last Updated**: January 14, 2026
-**Next Review Date**: March 14, 2026
+**Document Version**: 2.2
+**Last Updated**: January 17, 2026
+**Next Review Date**: March 17, 2026
 
 **Changelog:**
+- v2.2 (2026-01-17): Added comprehensive date filter definitions (30 Day Rolling, This Month, Last Month, This Year, Last Year, Custom Range) with accurate date range calculations and demo data notes
 - v2.1 (2026-01-14): Updated refund handling - refunds now subtract from sales totals instead of being excluded
 - v2.0 (2026-01-14): Updated for Supabase implementation, added store filtering
 - v1.0 (2026-01-14): Initial Laravel-based documentation
