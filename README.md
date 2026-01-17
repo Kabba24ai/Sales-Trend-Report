@@ -1119,6 +1119,697 @@ Access your Supabase project dashboard to:
 
 ---
 
+## Laravel Integration Guide
+
+This section provides complete implementation details for Laravel developers to connect this React-based sales dashboard to a Laravel/Blade backend.
+
+### Architecture Overview
+
+```
+React Frontend (Vite) ←→ Laravel API Backend ←→ MySQL/PostgreSQL Database
+```
+
+The React application will communicate with Laravel via RESTful API endpoints. Laravel handles authentication, database queries, and business logic.
+
+---
+
+### 1. Laravel API Endpoints to Implement
+
+Create the following API routes in `routes/api.php`:
+
+```php
+// API Routes for Sales Dashboard
+Route::prefix('api/sales')->middleware(['api'])->group(function () {
+    // Reference data endpoints
+    Route::get('/stores', [SalesController::class, 'getStores']);
+    Route::get('/categories', [SalesController::class, 'getCategories']);
+    Route::get('/products', [SalesController::class, 'getProducts']);
+
+    // Sales data endpoints with date filtering
+    Route::post('/data', [SalesController::class, 'getSalesData']);
+    Route::post('/top-products', [SalesController::class, 'getTopProducts']);
+    Route::post('/top-categories', [SalesController::class, 'getTopCategories']);
+
+    // Period comparison endpoints
+    Route::post('/rolling-30', [SalesController::class, 'getRolling30Days']);
+    Route::post('/7-day-comparison', [SalesController::class, 'get7DayComparison']);
+    Route::post('/last-month', [SalesController::class, 'getLastMonth']);
+});
+```
+
+**Important:** Add authentication middleware if needed:
+```php
+Route::prefix('api/sales')->middleware(['api', 'auth:sanctum'])->group(function () {
+    // ... routes
+});
+```
+
+---
+
+### 2. Controller Implementation
+
+Create `app/Http/Controllers/SalesController.php`:
+
+#### Key Methods to Implement
+
+**getStores() - Returns all store locations**
+```php
+public function getStores()
+{
+    return response()->json(
+        Store::select('id', 'name')->orderBy('name')->get()
+    );
+}
+```
+
+**Expected Response:**
+```json
+[
+    {"id": "uuid-1", "name": "Bon Aqua"},
+    {"id": "uuid-2", "name": "Waverly"}
+]
+```
+
+---
+
+**getCategories() - Returns all product categories**
+```php
+public function getCategories()
+{
+    return response()->json(
+        Category::select('id', 'name')->orderBy('name')->get()
+    );
+}
+```
+
+**Expected Response:**
+```json
+[
+    {"id": "uuid-1", "name": "Party Rentals"},
+    {"id": "uuid-2", "name": "Event Equipment"}
+]
+```
+
+---
+
+**getProducts() - Returns products, optionally filtered by category**
+```php
+public function getProducts(Request $request)
+{
+    $query = Product::select('id', 'name', 'category_id');
+
+    if ($request->has('category_id') && $request->category_id !== 'all') {
+        $query->where('category_id', $request->category_id);
+    }
+
+    return response()->json($query->orderBy('name')->get());
+}
+```
+
+**Expected Response:**
+```json
+[
+    {"id": "uuid-1", "name": "Bounce House", "category_id": "uuid-x"},
+    {"id": "uuid-2", "name": "Table Set", "category_id": "uuid-y"}
+]
+```
+
+---
+
+**getSalesData() - Main sales query with filters**
+
+This is the core method that handles all filtering and date range logic.
+
+**Request Payload Example:**
+```json
+{
+    "dateRange": "30_day_rolling",
+    "customStartDate": null,
+    "customEndDate": null,
+    "filters": {
+        "store": "all",
+        "itemType": "all",
+        "category": "all",
+        "product": "all",
+        "excludeWaiver": false,
+        "waiverOnly": false,
+        "excludeInsurance": false,
+        "insuranceOnly": false,
+        "excludeShipping": false,
+        "excludeDelivery": false,
+        "deliveryOnly": false
+    }
+}
+```
+
+**Date Range Options:**
+- `30_day_rolling`: Last 30 days including today
+- `this_month`: 1st of current month through today
+- `last_month`: Entire previous calendar month
+- `this_year`: Jan 1 of current year through today
+- `last_year`: Entire previous calendar year
+- `custom`: Use customStartDate and customEndDate
+
+**Implementation Skeleton:**
+```php
+public function getSalesData(Request $request)
+{
+    $dateRange = $request->input('dateRange', '30_day_rolling');
+    $filters = $request->input('filters', []);
+    $customStartDate = $request->input('customStartDate');
+    $customEndDate = $request->input('customEndDate');
+
+    // 1. Calculate date range based on $dateRange
+    [$startDate, $endDate] = $this->calculateDateRange($dateRange, $customStartDate, $customEndDate);
+
+    // 2. Build query with filters
+    $query = $this->buildSalesQuery($startDate, $endDate, $filters);
+
+    // 3. Execute and return results
+    return response()->json($query->get());
+}
+
+private function calculateDateRange($dateRange, $customStart, $customEnd)
+{
+    $today = now();
+
+    switch ($dateRange) {
+        case '30_day_rolling':
+            return [
+                $today->copy()->subDays(29)->startOfDay(),
+                $today->copy()->endOfDay()
+            ];
+
+        case 'this_month':
+            return [
+                $today->copy()->startOfMonth(),
+                $today->copy()->endOfDay()
+            ];
+
+        case 'last_month':
+            return [
+                $today->copy()->subMonth()->startOfMonth(),
+                $today->copy()->subMonth()->endOfMonth()
+            ];
+
+        case 'this_year':
+            return [
+                $today->copy()->startOfYear(),
+                $today->copy()->endOfDay()
+            ];
+
+        case 'last_year':
+            return [
+                $today->copy()->subYear()->startOfYear(),
+                $today->copy()->subYear()->endOfYear()
+            ];
+
+        case 'custom':
+            return [
+                Carbon::parse($customStart)->startOfDay(),
+                Carbon::parse($customEnd)->endOfDay()
+            ];
+
+        default:
+            return [
+                $today->copy()->subDays(29)->startOfDay(),
+                $today->copy()->endOfDay()
+            ];
+    }
+}
+```
+
+---
+
+**buildSalesQuery() - Core query builder with business rules**
+
+```php
+private function buildSalesQuery($startDate, $endDate, $filters)
+{
+    $query = DB::table('order_items')
+        ->join('orders', 'order_items.order_id', '=', 'orders.id')
+        ->whereIn('orders.payment_status', ['PAID', 'REFUNDED'])
+        ->whereNotNull('orders.payment_date')
+        ->whereBetween('orders.payment_date', [$startDate, $endDate]);
+
+    // Apply store filter
+    if (!empty($filters['store']) && $filters['store'] !== 'all') {
+        $query->where('orders.store_id', $filters['store']);
+    }
+
+    // Apply item type filter (rental/retail)
+    if (!empty($filters['itemType']) && $filters['itemType'] !== 'all') {
+        $query->where('order_items.item_type', $filters['itemType']);
+    }
+
+    // Apply category filter
+    if (!empty($filters['category']) && $filters['category'] !== 'all') {
+        $query->where('order_items.category_id', $filters['category']);
+    }
+
+    // Apply product filter
+    if (!empty($filters['product']) && $filters['product'] !== 'all') {
+        $query->where('order_items.product_id', $filters['product']);
+    }
+
+    // Apply waiver filters
+    if (!empty($filters['excludeWaiver'])) {
+        $query->where('order_items.item_type', '!=', 'damage_waiver');
+    }
+    if (!empty($filters['waiverOnly'])) {
+        $query->where('order_items.item_type', 'damage_waiver');
+    }
+
+    // Apply insurance filters
+    if (!empty($filters['excludeInsurance'])) {
+        $query->where('order_items.item_type', '!=', 'thrown_track_insurance');
+    }
+    if (!empty($filters['insuranceOnly'])) {
+        $query->where('order_items.item_type', 'thrown_track_insurance');
+    }
+
+    // Apply delivery filters
+    if (!empty($filters['excludeDelivery'])) {
+        $query->where('order_items.item_type', '!=', 'delivery');
+    }
+    if (!empty($filters['deliveryOnly'])) {
+        $query->where('order_items.item_type', 'delivery');
+    }
+
+    // Calculate revenue (CRITICAL BUSINESS RULES)
+    // PAID orders: revenue is ADDED (positive)
+    // REFUNDED orders: revenue is SUBTRACTED (negative)
+    // Sales tax is ALWAYS excluded
+
+    $shippingCost = !empty($filters['excludeShipping']) ? '0' : 'order_items.shipping_cost';
+
+    $query->selectRaw("
+        DATE(orders.payment_date) as date,
+        SUM(
+            CASE
+                WHEN orders.payment_status = 'PAID' THEN
+                    (order_items.subtotal + {$shippingCost} + order_items.processing_fees)
+                WHEN orders.payment_status = 'REFUNDED' THEN
+                    -(order_items.subtotal + {$shippingCost} + order_items.processing_fees)
+                ELSE 0
+            END
+        ) as sales
+    ")
+    ->groupBy('date')
+    ->orderBy('date');
+
+    return $query;
+}
+```
+
+**Expected Response:**
+```json
+[
+    {"date": "2026-01-15", "sales": 1250.50},
+    {"date": "2026-01-16", "sales": 890.25},
+    {"date": "2026-01-17", "sales": 1450.00}
+]
+```
+
+---
+
+**getTopProducts() - Top 10 products by revenue**
+
+**Request Payload:**
+```json
+{
+    "limit": 10,
+    "filters": { /* same as getSalesData */ }
+}
+```
+
+**Implementation:**
+```php
+public function getTopProducts(Request $request)
+{
+    $limit = $request->input('limit', 10);
+    $filters = $request->input('filters', []);
+
+    $query = DB::table('order_items')
+        ->join('orders', 'order_items.order_id', '=', 'orders.id')
+        ->join('products', 'order_items.product_id', '=', 'products.id')
+        ->whereIn('orders.payment_status', ['PAID', 'REFUNDED'])
+        ->whereNotNull('orders.payment_date')
+        ->whereNotIn('order_items.item_type', ['damage_waiver', 'thrown_track_insurance']);
+
+    // Apply filters (same logic as buildSalesQuery)
+
+    $query->selectRaw("
+        products.id,
+        products.name,
+        SUM(
+            CASE
+                WHEN orders.payment_status = 'PAID' THEN order_items.subtotal
+                WHEN orders.payment_status = 'REFUNDED' THEN -order_items.subtotal
+                ELSE 0
+            END
+        ) as total_sales,
+        COUNT(DISTINCT orders.id) as order_count
+    ")
+    ->groupBy('products.id', 'products.name')
+    ->orderByDesc('total_sales')
+    ->limit($limit);
+
+    return response()->json($query->get());
+}
+```
+
+**Expected Response:**
+```json
+[
+    {
+        "id": "uuid-1",
+        "name": "Bounce House Deluxe",
+        "total_sales": 25000.00,
+        "order_count": 45
+    }
+]
+```
+
+---
+
+**getTopCategories() - Top 5 categories by revenue**
+
+Similar implementation to getTopProducts but groups by category.
+
+---
+
+**getRolling30Days(), get7DayComparison(), getLastMonth()**
+
+These methods are for the chart comparison views. They need to return data for TWO periods (current and previous).
+
+**Request Payload:**
+```json
+{
+    "filters": { /* same as getSalesData */ }
+}
+```
+
+**Implementation Example for getRolling30Days:**
+```php
+public function getRolling30Days(Request $request)
+{
+    $filters = $request->input('filters', []);
+    $today = now();
+
+    // Current period: Last 30 days
+    $currentStart = $today->copy()->subDays(29)->startOfDay();
+    $currentEnd = $today->copy()->endOfDay();
+
+    // Previous period: 30 days before that
+    $previousStart = $today->copy()->subDays(59)->startOfDay();
+    $previousEnd = $today->copy()->subDays(30)->endOfDay();
+
+    // Get current period data
+    $currentData = $this->buildSalesQuery($currentStart, $currentEnd, $filters)
+        ->get()
+        ->map(function($item) {
+            $item->period = 'current';
+            return $item;
+        });
+
+    // Get previous period data
+    $previousData = $this->buildSalesQuery($previousStart, $previousEnd, $filters)
+        ->get()
+        ->map(function($item) {
+            $item->period = 'previous';
+            return $item;
+        });
+
+    return response()->json($currentData->concat($previousData));
+}
+```
+
+**Expected Response:**
+```json
+[
+    {"date": "2026-01-17", "sales": 1250.50, "period": "current"},
+    {"date": "2025-12-18", "sales": 1100.00, "period": "previous"}
+]
+```
+
+---
+
+### 3. Database Migration
+
+Use the SQL migrations in `supabase/migrations/` folder as reference to create Laravel migrations. The schema is database-agnostic (works with MySQL and PostgreSQL).
+
+**Key Tables:**
+- `stores` - Store locations
+- `categories` - Product categories
+- `products` - Product catalog
+- `orders` - Order headers with payment info
+- `order_items` - Line items with revenue breakdown
+
+**Run existing migrations:**
+```bash
+php artisan migrate
+```
+
+See the "Database Schema" section above for complete table structures.
+
+---
+
+### 4. Frontend Configuration
+
+Update the React frontend to connect to Laravel API:
+
+**File:** `src/services/salesApi.ts`
+
+Replace the Supabase client calls with Laravel API calls:
+
+```typescript
+// Change from Supabase
+import { supabase } from '../lib/supabase';
+
+// To Laravel API
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+
+// Example: getStores function
+export async function getStores() {
+    const response = await fetch(`${API_BASE_URL}/sales/stores`);
+    if (!response.ok) throw new Error('Failed to fetch stores');
+    return response.json();
+}
+
+// Example: getSalesData function
+export async function getSalesData(
+    dateRange: string,
+    filters: SalesFilters,
+    customStartDate?: string,
+    customEndDate?: string
+) {
+    const response = await fetch(`${API_BASE_URL}/sales/data`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+            dateRange,
+            customStartDate,
+            customEndDate,
+            filters
+        })
+    });
+
+    if (!response.ok) throw new Error('Failed to fetch sales data');
+    return response.json();
+}
+```
+
+---
+
+### 5. Environment Variables
+
+**Laravel `.env`:**
+```env
+# Database connection (use your existing config)
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your_database
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+
+# CORS settings for React frontend
+SANCTUM_STATEFUL_DOMAINS=localhost:5173,localhost:3000
+SESSION_DOMAIN=localhost
+```
+
+**React `.env`:**
+```env
+# Laravel API endpoint
+VITE_API_BASE_URL=http://localhost:8000/api
+
+# Remove Supabase variables (no longer needed)
+# VITE_SUPABASE_URL=...
+# VITE_SUPABASE_ANON_KEY=...
+```
+
+---
+
+### 6. CORS Configuration
+
+Laravel needs to allow requests from the React frontend.
+
+**File:** `config/cors.php`
+
+```php
+return [
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'allowed_methods' => ['*'],
+    'allowed_origins' => [
+        'http://localhost:5173',  // Vite dev server
+        'http://localhost:3000',  // Alternative React port
+        env('FRONTEND_URL', 'http://localhost:5173'),
+    ],
+    'allowed_origins_patterns' => [],
+    'allowed_headers' => ['*'],
+    'exposed_headers' => [],
+    'max_age' => 0,
+    'supports_credentials' => true,
+];
+```
+
+**Important:** Update `allowed_origins` for production with your actual domain.
+
+---
+
+### 7. Authentication (Optional)
+
+If you want to protect the API with authentication:
+
+**Install Laravel Sanctum:**
+```bash
+composer require laravel/sanctum
+php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
+php artisan migrate
+```
+
+**Add middleware to routes:**
+```php
+Route::prefix('api/sales')
+    ->middleware(['api', 'auth:sanctum'])
+    ->group(function () {
+        // ... routes
+    });
+```
+
+**Frontend authentication:**
+```typescript
+// Login and store token
+const response = await fetch(`${API_BASE_URL}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+});
+const { token } = await response.json();
+localStorage.setItem('auth_token', token);
+
+// Include token in requests
+const response = await fetch(`${API_BASE_URL}/sales/data`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+    },
+    body: JSON.stringify({ dateRange, filters })
+});
+```
+
+---
+
+### 8. Testing the Integration
+
+**Step 1: Start Laravel backend**
+```bash
+php artisan serve
+# Running on http://localhost:8000
+```
+
+**Step 2: Test API endpoints with Postman or curl**
+```bash
+# Test stores endpoint
+curl http://localhost:8000/api/sales/stores
+
+# Test sales data endpoint
+curl -X POST http://localhost:8000/api/sales/data \
+  -H "Content-Type: application/json" \
+  -d '{"dateRange":"30_day_rolling","filters":{"store":"all"}}'
+```
+
+**Step 3: Start React frontend**
+```bash
+npm run dev
+# Running on http://localhost:5173
+```
+
+**Step 4: Verify connection**
+- Open browser to http://localhost:5173
+- Check browser console for API calls
+- Verify data loads correctly in charts
+
+---
+
+### 9. Deployment Checklist
+
+**Laravel Backend:**
+- [ ] Deploy to production server (Laravel Forge, AWS, etc.)
+- [ ] Set production environment variables
+- [ ] Run migrations: `php artisan migrate --force`
+- [ ] Configure CORS for production domain
+- [ ] Set up SSL/HTTPS
+- [ ] Configure caching: `php artisan config:cache`
+
+**React Frontend:**
+- [ ] Update `VITE_API_BASE_URL` to production API URL
+- [ ] Build for production: `npm run build`
+- [ ] Deploy `dist/` folder to hosting (Vercel, Netlify, S3)
+- [ ] Verify CORS allows production domain
+- [ ] Test all API endpoints from production frontend
+
+---
+
+### 10. Key Integration Points Summary
+
+**API Endpoints Needed:**
+1. `GET /api/sales/stores` - Store list
+2. `GET /api/sales/categories` - Category list
+3. `GET /api/sales/products?category_id={id}` - Product list
+4. `POST /api/sales/data` - Main sales data with date filter
+5. `POST /api/sales/top-products` - Top 10 products
+6. `POST /api/sales/top-categories` - Top 5 categories
+7. `POST /api/sales/rolling-30` - 30-day comparison chart
+8. `POST /api/sales/7-day-comparison` - 7-day comparison chart
+9. `POST /api/sales/last-month` - Last month comparison chart
+
+**Critical Business Rules to Implement:**
+- PAID orders: revenue is ADDED to totals (positive values)
+- REFUNDED orders: revenue is SUBTRACTED from totals (negative values)
+- PENDING and FAILED orders: EXCLUDED from all calculations
+- Sales tax: ALWAYS excluded from revenue calculations
+- Revenue formula: `subtotal + shipping_cost + processing_fees` (sales tax excluded)
+- Date filters must include BOTH start and end dates (inclusive)
+
+**Date Range Calculations:**
+- 30 Day Rolling: Today minus 29 days through today (30 days total)
+- This Month: 1st of current month through today
+- Last Month: 1st through last day of previous month
+- This Year: January 1st of current year through today
+- Last Year: January 1st through December 31st of previous year
+- Custom: User-selected start and end dates
+
+**Response Formats:**
+All responses should return JSON matching the TypeScript interfaces defined in `src/services/salesApi.ts`.
+
+---
+
 ## Future Enhancements
 
 ### Planned Features
@@ -1141,11 +1832,12 @@ Access your Supabase project dashboard to:
 
 ---
 
-**Document Version**: 2.2
+**Document Version**: 3.0
 **Last Updated**: January 17, 2026
 **Next Review Date**: March 17, 2026
 
 **Changelog:**
+- v3.0 (2026-01-17): Added comprehensive Laravel Integration Guide with API endpoints, controller implementations, CORS configuration, authentication setup, and deployment checklists
 - v2.2 (2026-01-17): Added comprehensive date filter definitions (30 Day Rolling, This Month, Last Month, This Year, Last Year, Custom Range) with accurate date range calculations and demo data notes
 - v2.1 (2026-01-14): Updated refund handling - refunds now subtract from sales totals instead of being excluded
 - v2.0 (2026-01-14): Updated for Supabase implementation, added store filtering
