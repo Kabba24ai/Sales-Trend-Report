@@ -473,29 +473,29 @@ export default function GraphicalSalesReport() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-4 text-center">
+        <div className="flex gap-4 mb-8">
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-4 text-center flex-1">
             <div className="text-xs font-medium text-slate-600 mb-2">Total Net Sales</div>
             <div className="text-2xl font-bold text-blue-600">
               {loading ? '...' : formatCurrency(salesSummary?.totalNetSales || 0)}
             </div>
           </div>
 
-          <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-4 text-center">
+          <div className="bg-green-50 border border-green-100 rounded-2xl px-4 py-4 text-center flex-1">
             <div className="text-xs font-medium text-slate-600 mb-2">Transactions</div>
             <div className="text-2xl font-bold text-green-600">
               {loading ? '...' : (salesSummary?.transactionCount || 0).toLocaleString()}
             </div>
           </div>
 
-          <div className="bg-orange-50 border border-orange-100 rounded-2xl px-4 py-4 text-center">
+          <div className="bg-orange-50 border border-orange-100 rounded-2xl px-4 py-4 text-center flex-1">
             <div className="text-xs font-medium text-slate-600 mb-2">Avg Sale Value</div>
             <div className="text-2xl font-bold text-orange-600">
               {loading ? '...' : formatCurrency(salesSummary?.averageSaleValue || 0)}
             </div>
           </div>
 
-          <div className="bg-purple-50 border border-purple-100 rounded-2xl px-4 py-4 text-center">
+          <div className="bg-purple-50 border border-purple-100 rounded-2xl px-4 py-4 text-center flex-1">
             <div className="text-xs font-medium text-slate-600 mb-2">Items Sold</div>
             <div className="text-2xl font-bold text-purple-600">
               {loading ? '...' : (salesSummary?.itemsSold || 0).toLocaleString()}
