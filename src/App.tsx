@@ -2,9 +2,10 @@ import { useState } from 'react';
 import SalesTrendReport from './components/SalesTrendReport';
 import PureSalesReport from './components/PureSalesReport';
 import ProductPerformance from './components/ProductPerformance';
-import { TrendingUp, ShoppingCart, BarChart3 } from 'lucide-react';
+import GraphicalSalesReport from './components/GraphicalSalesReport';
+import { TrendingUp, ShoppingCart, BarChart3, PieChart } from 'lucide-react';
 
-type ReportView = 'trend' | 'sales' | 'performance';
+type ReportView = 'trend' | 'sales' | 'performance' | 'graphical';
 
 function App() {
   const [currentView, setCurrentView] = useState<ReportView>('sales');
@@ -37,6 +38,17 @@ function App() {
               Product Performance
             </button>
             <button
+              onClick={() => setCurrentView('graphical')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                currentView === 'graphical'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-transparent text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <PieChart size={18} />
+              Graphical Sales Report
+            </button>
+            <button
               onClick={() => setCurrentView('trend')}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
                 currentView === 'trend'
@@ -53,6 +65,7 @@ function App() {
 
       {currentView === 'sales' && <PureSalesReport />}
       {currentView === 'performance' && <ProductPerformance />}
+      {currentView === 'graphical' && <GraphicalSalesReport />}
       {currentView === 'trend' && <SalesTrendReport />}
     </div>
   );
