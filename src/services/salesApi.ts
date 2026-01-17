@@ -253,28 +253,31 @@ export const salesApi = {
       query = query.eq('item_type', 'retail');
     }
 
-    if (filters.excludeWaiver) {
-      query = query.neq('item_type', 'damage_waiver');
-    }
-
+    const onlyFilters: string[] = [];
     if (filters.waiverOnly) {
-      query = query.eq('item_type', 'damage_waiver');
+      onlyFilters.push('damage_waiver');
     }
-
-    if (filters.excludeInsurance) {
-      query = query.neq('item_type', 'thrown_track_insurance');
-    }
-
     if (filters.insuranceOnly) {
-      query = query.eq('item_type', 'thrown_track_insurance');
+      onlyFilters.push('thrown_track_insurance');
     }
-
-    if (filters.excludeDelivery) {
-      query = query.neq('item_type', 'delivery');
-    }
-
     if (filters.deliveryOnly) {
-      query = query.eq('item_type', 'delivery');
+      onlyFilters.push('delivery');
+    }
+
+    if (onlyFilters.length > 0) {
+      query = query.in('item_type', onlyFilters);
+    } else {
+      if (filters.excludeWaiver) {
+        query = query.neq('item_type', 'damage_waiver');
+      }
+
+      if (filters.excludeInsurance) {
+        query = query.neq('item_type', 'thrown_track_insurance');
+      }
+
+      if (filters.excludeDelivery) {
+        query = query.neq('item_type', 'delivery');
+      }
     }
 
     const { data, error } = await query;
@@ -372,28 +375,31 @@ export const salesApi = {
       query = query.eq('item_type', 'retail');
     }
 
-    if (filters.excludeWaiver) {
-      query = query.neq('item_type', 'damage_waiver');
-    }
-
+    const onlyFilters: string[] = [];
     if (filters.waiverOnly) {
-      query = query.eq('item_type', 'damage_waiver');
+      onlyFilters.push('damage_waiver');
     }
-
-    if (filters.excludeInsurance) {
-      query = query.neq('item_type', 'thrown_track_insurance');
-    }
-
     if (filters.insuranceOnly) {
-      query = query.eq('item_type', 'thrown_track_insurance');
+      onlyFilters.push('thrown_track_insurance');
     }
-
-    if (filters.excludeDelivery) {
-      query = query.neq('item_type', 'delivery');
-    }
-
     if (filters.deliveryOnly) {
-      query = query.eq('item_type', 'delivery');
+      onlyFilters.push('delivery');
+    }
+
+    if (onlyFilters.length > 0) {
+      query = query.in('item_type', onlyFilters);
+    } else {
+      if (filters.excludeWaiver) {
+        query = query.neq('item_type', 'damage_waiver');
+      }
+
+      if (filters.excludeInsurance) {
+        query = query.neq('item_type', 'thrown_track_insurance');
+      }
+
+      if (filters.excludeDelivery) {
+        query = query.neq('item_type', 'delivery');
+      }
     }
 
     const { data, error } = await query;
@@ -496,28 +502,31 @@ export const salesApi = {
       query = query.eq('item_type', 'retail');
     }
 
-    if (filters.excludeWaiver) {
-      query = query.neq('item_type', 'damage_waiver');
-    }
-
+    const onlyFilters: string[] = [];
     if (filters.waiverOnly) {
-      query = query.eq('item_type', 'damage_waiver');
+      onlyFilters.push('damage_waiver');
     }
-
-    if (filters.excludeInsurance) {
-      query = query.neq('item_type', 'thrown_track_insurance');
-    }
-
     if (filters.insuranceOnly) {
-      query = query.eq('item_type', 'thrown_track_insurance');
+      onlyFilters.push('thrown_track_insurance');
     }
-
-    if (filters.excludeDelivery) {
-      query = query.neq('item_type', 'delivery');
-    }
-
     if (filters.deliveryOnly) {
-      query = query.eq('item_type', 'delivery');
+      onlyFilters.push('delivery');
+    }
+
+    if (onlyFilters.length > 0) {
+      query = query.in('item_type', onlyFilters);
+    } else {
+      if (filters.excludeWaiver) {
+        query = query.neq('item_type', 'damage_waiver');
+      }
+
+      if (filters.excludeInsurance) {
+        query = query.neq('item_type', 'thrown_track_insurance');
+      }
+
+      if (filters.excludeDelivery) {
+        query = query.neq('item_type', 'delivery');
+      }
     }
 
     const { data, error } = await query;
@@ -1183,28 +1192,31 @@ export const salesApi = {
       query = query.eq('item_type', 'retail');
     }
 
-    if (filters.excludeWaiver) {
-      query = query.neq('item_type', 'damage_waiver');
-    }
-
+    const onlyFilters: string[] = [];
     if (filters.waiverOnly) {
-      query = query.eq('item_type', 'damage_waiver');
+      onlyFilters.push('damage_waiver');
     }
-
-    if (filters.excludeInsurance) {
-      query = query.neq('item_type', 'thrown_track_insurance');
-    }
-
     if (filters.insuranceOnly) {
-      query = query.eq('item_type', 'thrown_track_insurance');
+      onlyFilters.push('thrown_track_insurance');
     }
-
-    if (filters.excludeDelivery) {
-      query = query.neq('item_type', 'delivery');
-    }
-
     if (filters.deliveryOnly) {
-      query = query.eq('item_type', 'delivery');
+      onlyFilters.push('delivery');
+    }
+
+    if (onlyFilters.length > 0) {
+      query = query.in('item_type', onlyFilters);
+    } else {
+      if (filters.excludeWaiver) {
+        query = query.neq('item_type', 'damage_waiver');
+      }
+
+      if (filters.excludeInsurance) {
+        query = query.neq('item_type', 'thrown_track_insurance');
+      }
+
+      if (filters.excludeDelivery) {
+        query = query.neq('item_type', 'delivery');
+      }
     }
 
     if (filters.dateRange && filters.dateRange !== 'all') {
