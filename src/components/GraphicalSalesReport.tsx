@@ -43,6 +43,7 @@ export default function GraphicalSalesReport() {
   const [stores, setStores] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [revenueViewMode, setRevenueViewMode] = useState<'dollars' | 'percentage'>('dollars');
 
   const [dailySales, setDailySales] = useState<DailySalesData[]>([]);
   const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdownData[]>([]);
@@ -503,7 +504,31 @@ export default function GraphicalSalesReport() {
 
         <div className="grid grid-cols-2 gap-6 mb-6">
           <div>
-            <h2 className="text-base font-semibold text-slate-900 mb-4">Revenue Breakdown</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-slate-900">Revenue Breakdown</h2>
+              <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                <button
+                  onClick={() => setRevenueViewMode('dollars')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                    revenueViewMode === 'dollars'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Dollars
+                </button>
+                <button
+                  onClick={() => setRevenueViewMode('percentage')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-all ${
+                    revenueViewMode === 'percentage'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Percentage
+                </button>
+              </div>
+            </div>
             <div className="bg-white rounded-lg border border-slate-200 p-6">
               {loading ? (
                 <div className="h-80 flex items-center justify-center">
@@ -527,7 +552,11 @@ export default function GraphicalSalesReport() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: any) => formatCurrency(value)}
+                        formatter={(value: any) =>
+                          revenueViewMode === 'dollars'
+                            ? formatCurrency(value)
+                            : `${((value / totalRevenue) * 100).toFixed(1)}%`
+                        }
                         contentStyle={{
                           backgroundColor: 'white',
                           border: '1px solid #e2e8f0',
@@ -548,7 +577,10 @@ export default function GraphicalSalesReport() {
                           <span className="text-xs text-slate-700">{item.name}</span>
                         </div>
                         <div className="text-xs font-semibold text-slate-900">
-                          {formatCurrency(item.value)}
+                          {revenueViewMode === 'dollars'
+                            ? formatCurrency(item.value)
+                            : `${((item.value / totalRevenue) * 100).toFixed(1)}%`
+                          }
                         </div>
                       </div>
                     ))}
